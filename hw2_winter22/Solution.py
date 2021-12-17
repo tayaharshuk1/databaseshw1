@@ -34,17 +34,43 @@ def _createTable(name, colNames, colTypes, colCanBeNull):
 
 
 def createTables():
-    table_Teams = _createTable(name="Teams",
+    table_Team = _createTable(name="Team",
                                colNames=["teamId"],
                                colTypes=["varchar(255)"],
                                colCanBeNull=[False])
 
-    table_Players = _createTable(name="Players",
-                                 colNames=[],
-                                 colTypes=[],
+    table_Player = _createTable(name="Player",
+                                 colNames=["playerId","teamId","age","hight","prefferedFoot"],
+                                 colTypes=["int","int","int","int","string"],
+                                 colCanBeNull=[False])
+
+    table_Scores = _createTable(name="Scores",
+                                 colNames=["playerId", "matchId", "amount"],
+                                 colTypes=["int","int","int"],
+                                 colCanBeNull=[False])
+
+    table_Match = _createTable(name="Match",
+                                 colNames=["matchId","competition","homeTeamId","awayTeamId"],
+                                 colTypes=["int","string","int","int"],
+                                 colCanBeNull=[False])
+
+    table_MatchInStadium = _createTable(name="MatchInStadium ",
+                                 colNames=["matchId", "stadiumId","attendance"],
+                                 colTypes=["int","int", "int"],
+                                 colCanBeNull=[False])
+
+    table_Stadium = _createTable(name="Stadium",
+                                 colNames=["stadiumId","capacity","teamId"],
+                                 colTypes=["int","int", "int"],
                                  colCanBeNull=[])
-    Tables.append(table_Teams)
-    Tables.append(table_Players)
+
+    Tables.append(table_Team)
+    Tables.append(table_Player)
+    Tables.append(table_Scores)
+    Tables.append(table_Match)
+    Tables.append(table_Stadium)
+
+
 
     view_ActiveTallTeams = {
         "query": "",
@@ -79,12 +105,35 @@ def dropTables():
     pass    # TODO : Jonathan
 
 
+def _errorHandling(e) -> ReturnValue:
+    pass
+
 def addTeam(teamID: int) -> ReturnValue:
-    pass    # TODO: Taya
+    q = "INSERT INTO Teams (teamId) VALUES (" + str(teamID) + ");"
+    try:
+        res = dbConnector.execute(query=q)
+    except DatabaseException.CHECK_VIOLATION as e:
+        return _errorHandling(e)
+
+    return ReturnValue.OK
+
 
 
 def addMatch(match: Match) -> ReturnValue:
-    pass    # TODO: Taya
+    matchId = match.getMatchID()
+    competiton = match.getCompetition()
+    homeTeam =match.getHomeTeamID()
+    awayTeam = match.getAwayTeamID()
+
+    q = "INSERT INTO Matches (matchId ,competition, homeTeamId,awayTeamId) VALUES ("
+    q+= str(matchId) + " , " +competiton + " , " + str(homeTeam) + " , " + str(awayTeam) + " );"
+    try:
+        res = dbConnector.execute(query=q)
+    except DatabaseException.CHECK_VIOLATION as e:
+        return _errorHandling(e)
+
+    return ReturnValue.OK
+
 
 
 def getMatchProfile(matchID: int) -> Match:
