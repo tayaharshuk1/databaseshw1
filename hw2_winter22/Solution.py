@@ -8,9 +8,68 @@ from Business.Stadium import Stadium
 from psycopg2 import sql
 
 
-def createTables():
-    pass
+dbConnector = Connector.DBConnector()
+Tables = []
+Views = []
 
+tableTemplate = {
+    "name": "",
+    "colNames": [],
+    "colTypes": [],
+    "colCanBeNull": []
+}
+
+viewTemplate = {
+    "query": "",
+    "materialized": False
+}
+
+def _createTable(name, colNames, colTypes, colCanBeNull):
+    return {
+        "name": name,
+        "colNames": colNames,
+        "colTypes": colTypes,
+        "colCanBeNull": colCanBeNull
+    }
+
+
+def createTables():
+    table_Teams = _createTable(name="Teams",
+                               colNames=["teamId"],
+                               colTypes=["varchar(255)"],
+                               colCanBeNull=[False])
+
+    table_Players = _createTable(name="Players",
+                                 colNames=[],
+                                 colTypes=[],
+                                 colCanBeNull=[])
+    Tables.append(table_Teams)
+    Tables.append(table_Players)
+
+    view_ActiveTallTeams = {
+        "query": "",
+        "materialized": False
+    }
+    Views.append(view_ActiveTallTeams)
+
+    # Table creator generator
+    for table in Tables:
+        q = "CREATE TABLE " + table["name"] + "("
+        for col_index in range(len(table["colNames"])):
+            q += table["colNames"][col_index] + " " + table["colTypes"][col_index]
+            if not table["colCanBeNull"][col_index]:
+                q += " NOT NULL"
+            if col_index < len(table["colNames"]) - 1 :
+                q += ", "
+        q += ")"
+
+        try:
+            dbConnector.execute(query=q)
+        except:
+            pass
+
+    for view in Views:
+        pass
 
 def clearTables():
     pass
@@ -81,19 +140,53 @@ def averageAttendanceInStadium(stadiumID: int) -> float:
 
 
 def stadiumTotalGoals(stadiumID: int) -> int:
+    # sum(amount) on [(matchInStadium where stadiumId == str(stadiumId)) join by matchId kind=leftOuter (scored)]
     pass
 
 
 def playerIsWinner(playerID: int, matchID: int) -> bool:
-    pass
+    q = "SELECT amount FROM Scores WHERE playerId == " + str(playerID)
+    q += " AND matchID == " + str(matchID)
+    q += " UNION SELECT SUM(amount) FROM Scores WHERE matchID == " + str(matchID)
+    res = dbConnector.execute(query=q)
 
+    rows = res[1].rows
+    playerRow = rows[0]
+    totalRow = rows[1]
+    playerAmount = playerRow[0]
+    totalAmount = totalRow[0]
+    return 2*playerAmount >= totalAmount
+
+def getAllTallActiveTeamsQuery():
+    activeTeamsQ = ""   # TODO
+    tallTeamsQ = ""     # TODO
+    q = activeTeamsQ + " INTERSECT " + tallTeamsQ
+    return q
 
 def getActiveTallTeams() -> List[int]:
-    pass
+    q = getAllTallActiveTeamsQuery() + " ORDER BY teamId DESC LIMIT 5"
+
+    res = dbConnector.execute(query=q)
+    teams = []
+    for row in res[1]:
+        teams.append(row[0])
+        # TODO: check of int
+
+    return teams
 
 
 def getActiveTallRichTeams() -> List[int]:
-    pass
+    activeTallTeamsQ = getAllTallActiveTeamsQuery()
+    reachTeams = " " #TODO
+    q = activeTallTeamsQ + " INTERSECT " + reachTeams + " ORDER BY teamId ASC LIMIT 5"
+
+    res = dbConnector.execute(query=q)
+    teams = []
+    for row in res[1]:
+        teams.append(row[0])
+        # TODO: check of int
+
+    return teams
 
 
 def popularTeams() -> List[int]:

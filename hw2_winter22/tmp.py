@@ -1,7 +1,7 @@
 from Utility.DBConnector import *
 
 
-dbConnector = DBConnector(section='tmp')
+dbConnector = DBConnector()
 
 queryCreateTable = "CREATE TABLE students (name varchar(255), id int)"
 
@@ -10,7 +10,10 @@ queryAddRow2 = "INSERT INTO students (name, id) VALUES ('Jonathan', 2);"
 
 queryRead = "SELECT name, id FROM students"
 
-# createRes = dbConnector.execute(query=queryCreateTable)
+try:
+    createRes = dbConnector.execute(query=queryCreateTable)
+except:
+    pass
 
 # writeRes = dbConnector.execute(query=queryAddRow)
 # writeRes2 = dbConnector.execute(query=queryAddRow2)
