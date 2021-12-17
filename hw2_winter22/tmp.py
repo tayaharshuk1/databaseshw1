@@ -4,7 +4,16 @@ from Solution import *
 
 def _nukeDB():
     defineTables()
-    dropTables()
+    Tables.reverse()
+    for table in Tables:
+        dbConnector = Connector.DBConnector()
+        q = "DROP TABLE " + table["name"]
+        try:
+            dbConnector.execute(query=q)
+        except BaseException as e:
+            print(e)
+        finally:
+            dbConnector.close()
     Tables.clear()
 
 def _testDB():
@@ -13,14 +22,15 @@ def _testDB():
     origMatch = Match(1, "CTF", 2, 3)
     addMatch(origMatch)
     resMatch = getMatchProfile(1)
-    res1 = dbConnector.execute(query="Select * FROM Teams")
+    # res1 = dbConnector.execute(query="Select * FROM Teams")
     clearTables()
-    res2 = dbConnector.execute(query="Select * FROM Teams")
+    # res2 = dbConnector.execute(query="Select * FROM Teams")
     dropTables()
 
 
 _nukeDB()
-_testDB()
+
+# _testDB()
 
 
 print("end")

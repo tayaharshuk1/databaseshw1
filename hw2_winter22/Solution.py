@@ -1,5 +1,8 @@
 import collections
 from typing import List
+
+from pycparser.c_ast import Return
+
 import Utility.DBConnector as Connector
 from Utility.ReturnValue import ReturnValue
 from Utility.Exceptions import DatabaseException
@@ -14,7 +17,16 @@ Views = []
 
 
 def _errorHandling(e) -> ReturnValue:
-    pass
+    if isinstance(e, DatabaseException.UNIQUE_VIOLATION):
+        return ReturnValue.ALREADY_EXISTS
+
+    if isinstance(e, DatabaseException.FOREIGN_KEY_VIOLATION):
+        return ReturnValue.BAD_PARAMS
+
+    if isinstance(e, DatabaseException.database_ini_ERROR):
+        return ReturnValue.NOT_EXISTS
+
+    return ReturnValue.OK
 
 
 def sendQuery(query) -> collections.namedtuple("QueryResult", ["Status", "Set"]):
@@ -23,7 +35,7 @@ def sendQuery(query) -> collections.namedtuple("QueryResult", ["Status", "Set"])
     res = None
     try:
         res = dbConnector.execute(query=query)
-    except DatabaseException.CHECK_VIOLATION as e:
+    except BaseException as e:
         retValue = _errorHandling(e)
 
     dbConnector.close()
@@ -32,56 +44,51 @@ def sendQuery(query) -> collections.namedtuple("QueryResult", ["Status", "Set"])
     return queryResult(retValue, res)
 
 
-def _createTable(name, colNames, colTypes, colCanBeNull, colIsUniqe):
+def _createTable(name, colNames, colTypes, extraProperties, foreignKey = None, references = None):
     assert len(colNames) == len(colTypes)
-    assert len(colNames) == len(colCanBeNull)
-    assert len(colNames) == len(colIsUniqe)
+    assert len(colNames) == len(extraProperties)
 
     return {
         "name": name,
         "colNames": colNames,
         "colTypes": colTypes,
-        "colCanBeNull": colCanBeNull,
-        "colIsUniqe": colIsUniqe
+        "extraProperties": extraProperties,
+        "foreignKey": foreignKey,
+        "references": references
     }
 
 
 def defineTables():
     table_Teams = _createTable(name="Teams",
                                colNames=["teamId"],
-                               colTypes=["varchar(255)"],
-                               colCanBeNull=[False],
-                               colIsUniqe=[True])
+                               colTypes=["int"],
+                               extraProperties=["PRIMARY KEY"])
 
     table_Players = _createTable(name="Players",
                                  colNames=["playerId", "teamId", "age", "height", "preferredFoot"],
                                  colTypes=["int", "int", "int", "int", "varchar(255)"],
-                                 colCanBeNull=[False, False, False, False, False],
-                                 colIsUniqe=[True, False, False, False, False])
-
+                                 extraProperties=["PRIMARY KEY", "NOT NULL", "NOT NULL", "NOT NULL", "NOT NULL"])
     table_Scores = _createTable(name="Scores",
                                 colNames=["playerId", "matchId", "amount"],
                                 colTypes=["int", "int", "int"],
-                                colCanBeNull=[False, False, False],
-                                colIsUniqe=[False, False, False])
+                                extraProperties=["UNIQUE NOT NULL", "NOT NULL", "NOT NULL"])
 
     table_Matches = _createTable(name="Matches",
                                  colNames=["matchId", "competition", "homeTeamId", "awayTeamId"],
                                  colTypes=["int", "varchar(255)", "int", "int"],
-                                 colCanBeNull=[False, False, False, False],
-                                 colIsUniqe=[True, False, False, False])
+                                 extraProperties=["UNIQUE NOT NULL", "NOT NULL", "NOT NULL", "NOT NULL"])
 
     table_MatchInStadium = _createTable(name="MatchInStadium",
                                         colNames=["matchId", "stadiumId", "attendance"],
                                         colTypes=["int", "int", "int"],
-                                        colCanBeNull=[False, False, False],
-                                        colIsUniqe=[True])
+                                        extraProperties=["UNIQUE NOT NULL", "NOT NULL", "NOT NULL"])
 
     table_Stadiums = _createTable(name="Stadiums",
                                   colNames=["stadiumId", "capacity", "teamId"],
                                   colTypes=["int", "int", "int"],
-                                  colCanBeNull=[False, False, True],
-                                  colIsUniqe=[True, False, False])
+                                  extraProperties=["UNIQUE NOT NULL", "NOT NULL", ""],
+                                  foreignKey="teamId",
+                                  references="Teams(teamId)")
 
     Tables.append(table_Teams)
     Tables.append(table_Players)
@@ -103,7 +110,6 @@ def defineViews():
 
 # region Init
 def createTables():
-    dbConnector = Connector.DBConnector()
 
     defineTables()
     defineViews()
@@ -113,50 +119,35 @@ def createTables():
         q = "CREATE TABLE " + table["name"] + " ("
         for col_index in range(len(table["colNames"])):
             q += table["colNames"][col_index] + " " + table["colTypes"][col_index]
-            if not table["colCanBeNull"][col_index]:
-                q += " NOT NULL"
-            if not table["colIsUnique"]:
-                q += " UNIQUE"
+            q += " " + table["extraProperties"][col_index]
             if col_index < len(table["colNames"]) - 1:
                 q += ", "
+
+        if table["foreignKey"]:
+            q += ", FOREIGN KEY ("+table["foreignKey"]+") REFERENCES "+table["references"]
         q += ")"
 
-        try:
-            dbConnector.execute(query=q)
-        except BaseException as e:
-            print(e)
+        sendQuery(q)
 
     for view in Views:
         pass  # TODO : Jonathan
 
-    dbConnector.close()
-
 def clearTables():
-    dbConnector = Connector.DBConnector()
     for table in Tables:
         q = "DELETE FROM " + table["name"]
-        try:
-            dbConnector.execute(query=q)
-        except BaseException as e:
-            print(e)
-    dbConnector.close()
+
 
 def dropTables():
-    dbConnector = Connector.DBConnector()
+    Tables.reverse()
     for table in Tables:
         q = "DROP TABLE " + table["name"]
-        try:
-            dbConnector.execute(query=q)
-        except BaseException as e:
-            print(e)
-    dbConnector.close()
+        sendQuery(q)
 
 # endregion
 
 # region Team
 
 def addTeam(teamID: int) -> ReturnValue:
-    dbConnector = Connector.DBConnector()
     q = "INSERT INTO Teams (teamId) VALUES (" + str(teamID) + ");"
 
     return sendQuery(q).Status
