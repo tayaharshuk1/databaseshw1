@@ -30,7 +30,6 @@ def _errorHandling(e) -> ReturnValue:
     return ReturnValue.ERROR
 
 
-
 def sendQuery(query) -> collections.namedtuple("QueryResult", ["Status", "Set"]):
     dbConnector = Connector.DBConnector()
     retValue = ReturnValue.OK
@@ -41,8 +40,6 @@ def sendQuery(query) -> collections.namedtuple("QueryResult", ["Status", "Set"])
         retValue = _errorHandling(e)
     finally:
         dbConnector.close()
-
-
 
     queryResult = collections.namedtuple("QueryResult", ["Status", "Set"])
     return queryResult(retValue, res)
@@ -140,9 +137,11 @@ def defineViews():
 
 
 def createTables():
-
     defineTables()
     defineViews()
+
+    # TODO: delete before submission
+    dropTables()
 
     # Table creator generator
     for table in Tables:
@@ -177,8 +176,7 @@ def clearTables():
 
 
 def dropTables():
-    Tables.reverse()
-    for table in Tables:
+    for table in reversed(Tables):
         q = "DROP TABLE " + table["name"]
         sendQuery(q)
 
@@ -346,6 +344,7 @@ def playerScoredInMatch(match: Match, player: Player, amount: int) -> ReturnValu
     q += str(amount) + ");"
     return sendQuery(q).Status
 
+
 def playerDidntScoreInMatch(match: Match, player: Player) -> ReturnValue:
     q = "DELETE FROM Scores WHERE  matchId = " + str(match.getMatchID()) + " AND playerId = " + str(player.getPlayerID()) + ";"
 
@@ -364,16 +363,41 @@ def matchInStadium(match: Match, stadium: Stadium, attendance: int) -> ReturnVal
 
 
 def matchNotInStadium(match: Match, stadium: Stadium) -> ReturnValue:
-    pass
+    q = "DELETE FROM MatchInStadium WHERE  matchId = " + str(match.getMatchID()) + " AND stadiumId = " + str(stadium.getStadiumID()) + ";"
+
+    return sendQuery(q).Status
 
 
 def averageAttendanceInStadium(stadiumID: int) -> float:
-    pass
+    q = "SELECT AVG(attendance) FROM MatchInStadium WHERE stadiumId = " + str(stadiumID)
+
+    res = sendQuery(q)
+    if res.Status != ReturnValue.OK:
+        return -1
+
+    if res.Set[0] == 0:
+        return 0
+
+    row = res.Set[1].rows[0]
+    return 0 if row[0] is None else row[0]
 
 
 def stadiumTotalGoals(stadiumID: int) -> int:
     # sum(amount) on [(matchInStadium where stadiumId == str(stadiumId)) join by matchId kind=leftOuter (scored)]
-    pass
+    q = "SELECT SUM(amount)"
+    q += " FROM matchInStadium"
+    q += " LEFT JOIN scores"
+    q += " ON matchInStadium.matchId = scores.matchId AND matchInStadium.stadiumId = " + str(stadiumID)
+
+    res = sendQuery(q)
+    if res.Status != ReturnValue.OK:
+        return -1
+
+    if res.Set[0] == 0:
+        return 0
+
+    row = res.Set[1].rows[0]
+    return 0 if row[0] is None else row[0]
 
 
 def playerIsWinner(playerID: int, matchID: int) -> bool:
