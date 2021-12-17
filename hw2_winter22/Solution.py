@@ -69,42 +69,42 @@ def createTables():
             pass
 
     for view in Views:
-        pass
+        pass    # TODO : Jonathan
 
 def clearTables():
-    pass
+    pass   # TODO : Jonathan
 
 
 def dropTables():
-    pass
+    pass    # TODO : Jonathan
 
 
 def addTeam(teamID: int) -> ReturnValue:
-    pass
+    pass    # TODO: Taya
 
 
 def addMatch(match: Match) -> ReturnValue:
-    pass
+    pass    # TODO: Taya
 
 
 def getMatchProfile(matchID: int) -> Match:
-    pass
+    pass    # TODO: Taya
 
 
 def deleteMatch(match: Match) -> ReturnValue:
-    pass
+    pass    # TODO: Taya
 
 
 def addPlayer(player: Player) -> ReturnValue:
-    pass
+    pass    # TODO: Taya
 
 
 def getPlayerProfile(playerID: int) -> Player:
-    pass
+    pass   # TODO: Taya
 
 
 def deletePlayer(player: Player) -> ReturnValue:
-    pass
+    pass    # TODO: Taya
 
 
 def addStadium(stadium: Stadium) -> ReturnValue:
