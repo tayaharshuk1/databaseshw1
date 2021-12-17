@@ -141,8 +141,8 @@ def addMatch(match: Match) -> ReturnValue:
     homeTeam =match.getHomeTeamID()
     awayTeam = match.getAwayTeamID()
 
-    q = "INSERT INTO Matches (matchId ,competition, homeTeamId,awayTeamId) VALUES ("
-    q+= str(matchId) + " , " +competiton + " , " + str(homeTeam) + " , " + str(awayTeam) + " );"
+    q = "INSERT INTO Matches (matchId ,competition, homeTeamId, awayTeamId) VALUES ("
+    q+= str(matchId) + " , '" +competiton + "' , " + str(homeTeam) + " , " + str(awayTeam) + " );"
     try:
         res = dbConnector.execute(query=q)
     except DatabaseException.CHECK_VIOLATION as e:
@@ -153,12 +153,28 @@ def addMatch(match: Match) -> ReturnValue:
 
 
 def getMatchProfile(matchID: int) -> Match:
-    pass    # TODO: Taya
+    q = "SELECT * FROM Matches WHERE matchId =" + str(matchID) + ";"
+    try:
+        res = dbConnector.execute(query=q)
+    except DatabaseException.CHECK_VIOLATION as e:
+        print(e)
+        return Match.badMatch()
+    row = res[1].rows[0]
+    competition = row[1]
+    homeTeamID = row[2]
+    awayTeamID = row[3]
 
+    return Match(matchID, competition, homeTeamID, awayTeamID)
 
 def deleteMatch(match: Match) -> ReturnValue:
-    pass    # TODO: Taya
 
+    q = "DELETE FROM Matches WHERE  matchId = " + str(match.getMatchID()) + ";"
+    try:
+        dbConnector.execute(query=q)
+    except BaseException as e:
+        return _errorHandling(e)
+
+    return ReturnValue.OK
 
 def addPlayer(player: Player) -> ReturnValue:
     pass    # TODO: Taya
