@@ -25,6 +25,9 @@ viewTemplate = {
 }
 
 def _createTable(name, colNames, colTypes, colCanBeNull):
+    assert len(colNames) == len(colTypes)
+    assert len(colNames) == len(colCanBeNull)
+
     return {
         "name": name,
         "colNames": colNames,
@@ -32,55 +35,58 @@ def _createTable(name, colNames, colTypes, colCanBeNull):
         "colCanBeNull": colCanBeNull
     }
 
-
-def createTables():
-    table_Team = _createTable(name="Team",
+def defineTables():
+    table_Teams = _createTable(name="Teams",
                                colNames=["teamId"],
                                colTypes=["varchar(255)"],
                                colCanBeNull=[False])
 
-    table_Player = _createTable(name="Player",
-                                 colNames=["playerId","teamId","age","hight","prefferedFoot"],
-                                 colTypes=["int","int","int","int","string"],
-                                 colCanBeNull=[False])
+    table_Players = _createTable(name="Players",
+                                 colNames=["playerId", "teamId", "age", "height", "preferredFoot"],
+                                 colTypes=["int", "int", "int", "int", "varchar(255)"],
+                                 colCanBeNull=[False, False, False, False, False])
 
     table_Scores = _createTable(name="Scores",
-                                 colNames=["playerId", "matchId", "amount"],
-                                 colTypes=["int","int","int"],
-                                 colCanBeNull=[False])
+                                colNames=["playerId", "matchId", "amount"],
+                                colTypes=["int", "int", "int"],
+                                colCanBeNull=[False, False, False])
 
-    table_Match = _createTable(name="Match",
-                                 colNames=["matchId","competition","homeTeamId","awayTeamId"],
-                                 colTypes=["int","string","int","int"],
-                                 colCanBeNull=[False])
+    table_Matches = _createTable(name="Matches",
+                                 colNames=["matchId", "competition", "homeTeamId", "awayTeamId"],
+                                 colTypes=["int", "varchar(255)", "int", "int"],
+                                 colCanBeNull=[False, False, False, False])
 
-    table_MatchInStadium = _createTable(name="MatchInStadium ",
-                                 colNames=["matchId", "stadiumId","attendance"],
-                                 colTypes=["int","int", "int"],
-                                 colCanBeNull=[False])
+    table_MatchInStadium = _createTable(name="MatchInStadium",
+                                        colNames=["matchId", "stadiumId", "attendance"],
+                                        colTypes=["int", "int", "int"],
+                                        colCanBeNull=[False, False, False])
 
-    table_Stadium = _createTable(name="Stadium",
-                                 colNames=["stadiumId","capacity","teamId"],
-                                 colTypes=["int","int", "int"],
-                                 colCanBeNull=[])
+    table_Stadiums = _createTable(name="Stadiums",
+                                  colNames=["stadiumId", "capacity", "teamId"],
+                                  colTypes=["int", "int", "int"],
+                                  colCanBeNull=[False, False, True])
 
-    Tables.append(table_Team)
-    Tables.append(table_Player)
+    Tables.append(table_Teams)
+    Tables.append(table_Players)
     Tables.append(table_Scores)
-    Tables.append(table_Match)
-    Tables.append(table_Stadium)
+    Tables.append(table_Matches)
+    Tables.append(table_MatchInStadium)
+    Tables.append(table_Stadiums)
 
 
+def createTables():
+    defineTables()
 
     view_ActiveTallTeams = {
-        "query": "",
+        "name": "",
+        "query": "ActiveTallTeams", # TODO
         "materialized": False
     }
     Views.append(view_ActiveTallTeams)
 
     # Table creator generator
     for table in Tables:
-        q = "CREATE TABLE " + table["name"] + "("
+        q = "CREATE TABLE " + table["name"] + " ("
         for col_index in range(len(table["colNames"])):
             q += table["colNames"][col_index] + " " + table["colTypes"][col_index]
             if not table["colCanBeNull"][col_index]:
@@ -91,18 +97,28 @@ def createTables():
 
         try:
             dbConnector.execute(query=q)
-        except:
-            pass
+        except BaseException as e:
+            print(e)
 
     for view in Views:
         pass    # TODO : Jonathan
 
 def clearTables():
-    pass   # TODO : Jonathan
+    for table in Tables:
+        q = "DELETE FROM " + table["name"]
+        try:
+            dbConnector.execute(query=q)
+        except BaseException as e:
+            print(e)
 
 
 def dropTables():
-    pass    # TODO : Jonathan
+    for table in Tables:
+        q = "DROP TABLE " + table["name"]
+        try:
+            dbConnector.execute(query=q)
+        except BaseException as e:
+            print(e)
 
 
 def _errorHandling(e) -> ReturnValue:

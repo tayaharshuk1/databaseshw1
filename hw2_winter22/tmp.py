@@ -1,31 +1,22 @@
 from Utility.DBConnector import *
+from Solution import *
 
 
-dbConnector = DBConnector()
+def _nukeDB():
+    defineTables()
+    dropTables()
 
-queryCreateTable = "CREATE TABLE students (name varchar(255), id int)"
+def _testDB():
+    createTables()
+    addTeam(1)
+    res1 = dbConnector.execute(query="Select * FROM Teams")
+    clearTables()
+    res2 = dbConnector.execute(query="Select * FROM Teams")
+    dropTables()
 
-queryAddRow = "INSERT INTO students (name, id) VALUES ('Taya', 1);"
-queryAddRow2 = "INSERT INTO students (name, id) VALUES ('Jonathan', 2);"
 
-queryRead = "SELECT name, id FROM students"
+# _nukeDB()
+_testDB()
 
-try:
-    createRes = dbConnector.execute(query=queryCreateTable)
-except:
-    pass
 
-# writeRes = dbConnector.execute(query=queryAddRow)
-# writeRes2 = dbConnector.execute(query=queryAddRow2)
-
-readRes = dbConnector.execute(query=queryRead)
-
-dbConnector.close()
-
-students = {}
-
-for row in readRes[1].rows:
-    students[row[1]] = row[0]
-
-print(students)
-print('end')
+print("end")
