@@ -27,12 +27,8 @@ def _errorHandling(e) -> ReturnValue:
     if isinstance(e, DatabaseException.FOREIGN_KEY_VIOLATION):
         return ReturnValue.BAD_PARAMS
 
-    if isinstance(e, DatabaseException.database_ini_ERROR) or \
-            isinstance(e, DatabaseException.ConnectionInvalid):
-        return ReturnValue.ERROR
+    return ReturnValue.ERROR
 
-    return ReturnValue.OK
-    # return ReturnValue.UNKNOWN_ERROR
 
 
 def sendQuery(query) -> collections.namedtuple("QueryResult", ["Status", "Set"]):
@@ -45,6 +41,8 @@ def sendQuery(query) -> collections.namedtuple("QueryResult", ["Status", "Set"])
         retValue = _errorHandling(e)
     finally:
         dbConnector.close()
+
+
 
     queryResult = collections.namedtuple("QueryResult", ["Status", "Set"])
     return queryResult(retValue, res)
@@ -122,7 +120,7 @@ def defineTables():
     table_MatchInStadium = _createTable(name="MatchInStadium",
                                         colNames=["matchId", "stadiumId", "attendance"],
                                         colTypes=["int", "int", "int"],
-                                        extraProperties=["UNIQUE NOT NULL", "NOT NULL", "NOT NULL"])
+                                        extraProperties=["PRIMARY KEY", "NOT NULL", "NOT NULL"])
 
     Tables.append(table_Teams)
     Tables.append(table_Players)
@@ -230,7 +228,7 @@ def getMatchProfile(matchID: int) -> Match:
     q = "SELECT * FROM Matches WHERE matchId =" + str(matchID) + ";"
     res = sendQuery(q)
 
-    if res.Status != ReturnValue.OK:
+    if res.Status != ReturnValue.OK or res.Set[0] == 0:
         return Match.badMatch()
 
     return _sqlToMatch(res.Set)
@@ -279,7 +277,7 @@ def getPlayerProfile(playerID: int) -> Player:
     q = "SELECT * FROM players WHERE playerId =" + str(playerID) + ";"
     res = sendQuery(q)
 
-    if res.Status != ReturnValue.OK:
+    if res.Status != ReturnValue.OK or res.Set[0] == 0:
         return Player.badPlayer()
 
     return _sqlToPlayer(res.Set)
@@ -325,7 +323,7 @@ def getStadiumProfile(stadiumID: int) -> Stadium:
     q = "SELECT * FROM stadiums WHERE stadiumId =" + str(stadiumID) + ";"
     res = sendQuery(q)
 
-    if res.Status != ReturnValue.OK:
+    if res.Status != ReturnValue.OK or res.Set[0] == 0:
         return Stadium.badStadium()
 
     return _sqlToStadium(res.Set)
@@ -342,18 +340,27 @@ def playerScoredInMatch(match: Match, player: Player, amount: int) -> ReturnValu
     if amount <= 0:
         return ReturnValue.BAD_PARAMS
 
-    q = "INSERT INTO ScoresScores (playerId, matchId, amount) VALUES ("
+    q = "INSERT INTO Scores (playerId, matchId, amount) VALUES ("
     q += str(player.getPlayerID()) + ", "
     q += str(match.getMatchID()) + ", "
     q += str(amount) + ");"
     return sendQuery(q).Status
 
 def playerDidntScoreInMatch(match: Match, player: Player) -> ReturnValue:
-    pass
+    q = "DELETE FROM Scores WHERE  matchId = " + str(match.getMatchID()) + " AND playerId = " + str(player.getPlayerID()) + ";"
+
+    return sendQuery(q).Status
 
 
 def matchInStadium(match: Match, stadium: Stadium, attendance: int) -> ReturnValue:
-    pass
+    if attendance <= 0:
+        return ReturnValue.BAD_PARAMS
+
+    q = "INSERT INTO MatchInStadium (matchId, stadiumId, attendance) VALUES ("
+    q += str(match.getMatchID())
+    q += ", " + str(stadium.getStadiumID())
+    q += ", " + str(attendance) + ");"
+    return sendQuery(q).Status
 
 
 def matchNotInStadium(match: Match, stadium: Stadium) -> ReturnValue:
@@ -370,9 +377,9 @@ def stadiumTotalGoals(stadiumID: int) -> int:
 
 
 def playerIsWinner(playerID: int, matchID: int) -> bool:
-    q = "SELECT amount FROM Scores WHERE playerId == " + str(playerID)
-    q += " AND matchID == " + str(matchID)
-    q += " UNION SELECT SUM(amount) FROM Scores WHERE matchID == " + str(matchID)
+    q = "SELECT amount FROM Scores WHERE playerId = " + str(playerID)
+    q += " AND matchID = " + str(matchID)
+    q += " UNION SELECT SUM(amount) FROM Scores WHERE matchID = " + str(matchID)
     res = Connector.DBConnector().execute(query=q)
 
     rows = res[1].rows
