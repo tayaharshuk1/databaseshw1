@@ -27,10 +27,13 @@ def _errorHandling(e) -> ReturnValue:
     if isinstance(e, DatabaseException.FOREIGN_KEY_VIOLATION):
         return ReturnValue.BAD_PARAMS
 
+    if e.pgcode == '22001':                 # Special treatment to a case of string too large
+        return ReturnValue.BAD_PARAMS
+
     return ReturnValue.ERROR
 
 
-def sendQuery(query) -> collections.namedtuple("QueryResult", ["Status", "Set"]):
+def sendQuery(query) -> collections.namedtuple("QueryResult", ["Status", "RowsAffected","Set"]):
     dbConnector = Connector.DBConnector()
     retValue = ReturnValue.OK
     res = None
@@ -41,11 +44,11 @@ def sendQuery(query) -> collections.namedtuple("QueryResult", ["Status", "Set"])
     finally:
         dbConnector.close()
 
-    queryResult = collections.namedtuple("QueryResult", ["Status", "Set"])
-    return queryResult(retValue, res)
+    queryResult = collections.namedtuple("QueryResult", ["Status","RowsAffected", "Set"])
+    return queryResult(retValue, None if res is None else res[0], None if res is None else res[1])
 
 
-def _createTable(name, colNames, colTypes, extraProperties, foreignKey = None, explicitPrimaryKey = None):
+def _createTable(name, colNames, colTypes, extraProperties, foreignKey = None, checks=None, extraStatements = None):
     """
     :param name: The Table name
     :param colNames: a list of column names
@@ -55,14 +58,16 @@ def _createTable(name, colNames, colTypes, extraProperties, foreignKey = None, e
         colName is a col which is a foreign key.
         The reference is the reference string in the format of Table(col).
         toDelete is a boolean list that state whether a foreign key need to enforce delete from reference table
-    :param explicitPrimaryKey: Sometimes, we'll want to set new col explicitly for a Primary key (mainly if the key consists multiple cols)
-            Should be a tuple of ('newColName', 'col1, col2, col3')
+    :param checks: To add a check to cols. (e.g., teamId > 0 )
+    :param extraStatements: Sometimes, we need more generic statements. (e.g., explicit primary keys, checks, etc.)
     :return: a dictionary with the table metadata for the table generator
     """
     if foreignKey is None:
         foreignKey = []
-    if explicitPrimaryKey is None:
-        explicitPrimaryKey = []
+    if extraStatements is None:
+        extraStatements = []
+    if checks is None:
+        checks = []
 
     assert len(colNames) == len(colTypes)
     assert len(colNames) == len(extraProperties)
@@ -73,7 +78,8 @@ def _createTable(name, colNames, colTypes, extraProperties, foreignKey = None, e
         "colTypes": colTypes,
         "extraProperties": extraProperties,
         "foreignKey": foreignKey,
-        "explicitPrimaryKey": explicitPrimaryKey
+        "checks": checks,
+        "extraStatements": extraStatements
     }
 
 # endregion
@@ -83,36 +89,42 @@ def defineTables():
     table_Teams = _createTable(name="Teams",
                                colNames=["teamId"],
                                colTypes=["int"],
+                               checks=["teamId > 0"],
                                extraProperties=["PRIMARY KEY"])
 
     table_Players = _createTable(name="Players",
-                                 colNames=["playerId", "teamId", "age", "height", "preferredFoot"],
+                                 colNames=["playerId", "teamId", "age", "height", "foot"],
                                  colTypes=["int", "int", "int", "int", "varchar(8)"],
                                  extraProperties=["PRIMARY KEY", "NOT NULL", "NOT NULL", "NOT NULL", "NOT NULL"],
-                                 foreignKey=[("teamId", "Teams(teamId)", True)])
+                                 foreignKey=[("teamId", "Teams(teamId)", True)],
+                                 checks=["playerId > 0", "age > 0", "height > 0", "foot = 'Right' OR foot = 'Left'"])
 
     table_Matches = _createTable(name="Matches",
                                  colNames=["matchId", "competition", "homeTeamId", "awayTeamId"],
                                  colTypes=["int", "varchar(16)", "int", "int"],
-                                 extraProperties=["PRIMARY KEY", "NOT NULL", "NOT NULL", "NOT NULL"])
+                                 extraProperties=["PRIMARY KEY", "NOT NULL", "NOT NULL", "NOT NULL"],
+                                 checks=["matchId > 0", "homeTeamId != awayTeamId", "competition = 'International' OR competition = 'Domestic'"])
 
     table_Stadiums = _createTable(name="Stadiums",
                                   colNames=["stadiumId", "capacity", "teamId"],
                                   colTypes=["int", "int", "int"],
                                   extraProperties=["PRIMARY KEY", "NOT NULL", "UNIQUE"],
-                                  foreignKey=[("teamId", "Teams(teamId)", True)])
+                                  foreignKey=[("teamId", "Teams(teamId)", True)],
+                                  checks=["stadiumId > 0", "capacity > 0"])
 
     table_Scores = _createTable(name="Scores",
                                 colNames=["playerId", "matchId", "amount"],
                                 colTypes=["int", "int", "int"],
                                 extraProperties=["NOT NULL", "NOT NULL", "NOT NULL"],
                                 foreignKey=[("playerId", "Players(playerId)", True), ("matchId", "Matches(matchId)", True)],
-                                explicitPrimaryKey=[("match_player", "playerId, matchId")])
+                                checks=["amount > 0"],
+                                extraStatements=[", CONSTRAINT match_player PRIMARY KEY (playerId, matchId)"])
 
     table_MatchInStadium = _createTable(name="MatchInStadium",
                                         colNames=["matchId", "stadiumId", "attendance"],
                                         colTypes=["int", "int", "int"],
-                                        extraProperties=["PRIMARY KEY", "NOT NULL", "NOT NULL"])
+                                        extraProperties=["PRIMARY KEY", "NOT NULL", "NOT NULL"],
+                                        foreignKey=[("matchId", "Matches(matchId)", True)])
 
     Tables.append(table_Teams)
     Tables.append(table_Players)
@@ -157,9 +169,13 @@ def createTables():
             if onDelete:
                 q += " ON DELETE CASCADE"
 
+        # add checks
+        for check in table["checks"]:
+            q += ", CHECK(" + check + ")"
+
         # add special primary keys if exists
-        for newCol, oldCols in table["explicitPrimaryKey"]:
-            q += ", CONSTRAINT " + newCol + " PRIMARY KEY (" + oldCols + ")"
+        for extraStatements in table["extraStatements"]:
+            q += extraStatements
 
         q += ");"
 
@@ -184,9 +200,6 @@ def dropTables():
 # region Team
 
 def addTeam(teamID: int) -> ReturnValue:
-    if teamID <= 0:
-        return ReturnValue.BAD_PARAMS
-
     q = "INSERT INTO Teams (teamId) VALUES (" + str(teamID) + ");"
     return sendQuery(q).Status
 
@@ -209,23 +222,17 @@ def addMatch(match: Match) -> ReturnValue:
     homeTeam = match.getHomeTeamID()
     awayTeam = match.getAwayTeamID()
 
-    if None in [matchId, competition, homeTeam, awayTeam]:
-        return ReturnValue.BAD_PARAMS
-
-    if matchId <= 0 or competition not in ["International", "Domestic"] or homeTeam == awayTeam:
-        return ReturnValue.BAD_PARAMS
-
     q = "INSERT INTO Matches (matchId ,competition, homeTeamId, awayTeamId) VALUES ("
     q += str(matchId) + " , '" + competition + "' , " + str(homeTeam) + " , " + str(awayTeam) + " );"
 
-    return sendQuery(q).Status  # TODO: check non-positive/non-existence teams and look for "Bad Params"
+    return sendQuery(q).Status
 
 
 def getMatchProfile(matchID: int) -> Match:
     q = "SELECT * FROM Matches WHERE matchId =" + str(matchID) + ";"
     res = sendQuery(q)
 
-    if res.Status != ReturnValue.OK or res.Set[0] == 0:
+    if res.Status != ReturnValue.OK or res.RowsAffected == 0:
         return Match.badMatch()
 
     return _sqlToMatch(res.Set)
@@ -234,7 +241,11 @@ def getMatchProfile(matchID: int) -> Match:
 def deleteMatch(match: Match) -> ReturnValue:
     q = "DELETE FROM Matches WHERE  matchId = " + str(match.getMatchID()) + ";"
 
-    return sendQuery(q).Status
+    res = sendQuery(q)
+    if res.Status == ReturnValue.OK and res.RowsAffected == 0:
+        return ReturnValue.NOT_EXISTS
+
+    return res.Status
 
 # endregion
 
@@ -255,13 +266,7 @@ def addPlayer(player: Player) -> ReturnValue:
     height = player.getHeight()
     foot = player.getFoot()
 
-    if None in [playerId, teamId, age, height, foot]:
-        return ReturnValue.BAD_PARAMS
-
-    if min(playerId, teamId, age, height) <= 0 or foot not in ["Left", "Right"]:
-        return ReturnValue.BAD_PARAMS
-
-    q = "INSERT INTO players (playerId, teamId, age, height, preferredFoot) VALUES ("
+    q = "INSERT INTO players (playerId, teamId, age, height, foot) VALUES ("
     q += str(playerId) + ", "
     q += str(teamId) + ", "
     q += str(age) + ", "
@@ -274,7 +279,7 @@ def getPlayerProfile(playerID: int) -> Player:
     q = "SELECT * FROM players WHERE playerId =" + str(playerID) + ";"
     res = sendQuery(q)
 
-    if res.Status != ReturnValue.OK or res.Set[0] == 0:
+    if res.Status != ReturnValue.OK or res.RowsAffected == 0:
         return Player.badPlayer()
 
     return _sqlToPlayer(res.Set)
@@ -283,7 +288,11 @@ def getPlayerProfile(playerID: int) -> Player:
 def deletePlayer(player: Player) -> ReturnValue:
     q = "DELETE FROM players WHERE  playerId = " + str(player.getPlayerID()) + ";"
 
-    return sendQuery(q).Status
+    res = sendQuery(q)
+    if res.Status == ReturnValue.OK and res.RowsAffected == 0:
+        return ReturnValue.NOT_EXISTS
+
+    return res.Status
 # endregion
 
 # region Stadium
@@ -291,7 +300,7 @@ def _sqlToStadium(res: Connector.ResultSet) -> Stadium:
     row = res[1].rows[0]
     return Stadium(stadiumID=row[0],
                    capacity=row[1],
-                   belongsTo=row[2])    #TODO: check if ok with Null
+                   belongsTo=row[2])
 
 
 def addStadium(stadium: Stadium) -> ReturnValue:
@@ -299,9 +308,6 @@ def addStadium(stadium: Stadium) -> ReturnValue:
     stadiumId = stadium.getStadiumID()
     cap = stadium.getCapacity()
     belong = stadium.getBelongsTo()
-
-    if None in [stadiumId, cap] or min(stadiumId, cap) <= 0 or (belong and belong <= 0):    # Last one is a bit tricky, it checks if 'belong' is valid only of it isn't None
-        return ReturnValue.BAD_PARAMS
 
     q = "INSERT INTO stadiums (stadiumId, capacity"
     if belong:
@@ -320,7 +326,7 @@ def getStadiumProfile(stadiumID: int) -> Stadium:
     q = "SELECT * FROM stadiums WHERE stadiumId =" + str(stadiumID) + ";"
     res = sendQuery(q)
 
-    if res.Status != ReturnValue.OK or res.Set[0] == 0:
+    if res.Status != ReturnValue.OK or res.RowsAffected == 0:
         return Stadium.badStadium()
 
     return _sqlToStadium(res.Set)
@@ -334,9 +340,6 @@ def deleteStadium(stadium: Stadium) -> ReturnValue:
 
 # region Basic API
 def playerScoredInMatch(match: Match, player: Player, amount: int) -> ReturnValue:
-    if amount <= 0:
-        return ReturnValue.BAD_PARAMS
-
     q = "INSERT INTO Scores (playerId, matchId, amount) VALUES ("
     q += str(player.getPlayerID()) + ", "
     q += str(match.getMatchID()) + ", "
@@ -347,13 +350,14 @@ def playerScoredInMatch(match: Match, player: Player, amount: int) -> ReturnValu
 def playerDidntScoreInMatch(match: Match, player: Player) -> ReturnValue:
     q = "DELETE FROM Scores WHERE  matchId = " + str(match.getMatchID()) + " AND playerId = " + str(player.getPlayerID()) + ";"
 
-    return sendQuery(q).Status
+    res = sendQuery(q)
+    if res.Status == ReturnValue.OK and res.RowsAffected == 0:
+        return ReturnValue.NOT_EXISTS
+
+    return res.Status
 
 
 def matchInStadium(match: Match, stadium: Stadium, attendance: int) -> ReturnValue:
-    if attendance <= 0:
-        return ReturnValue.BAD_PARAMS
-
     q = "INSERT INTO MatchInStadium (matchId, stadiumId, attendance) VALUES ("
     q += str(match.getMatchID())
     q += ", " + str(stadium.getStadiumID())
@@ -364,7 +368,11 @@ def matchInStadium(match: Match, stadium: Stadium, attendance: int) -> ReturnVal
 def matchNotInStadium(match: Match, stadium: Stadium) -> ReturnValue:
     q = "DELETE FROM MatchInStadium WHERE  matchId = " + str(match.getMatchID()) + " AND stadiumId = " + str(stadium.getStadiumID()) + ";"
 
-    return sendQuery(q).Status
+    res = sendQuery(q)
+    if res.Status == ReturnValue.OK and res.RowsAffected == 0:
+        return ReturnValue.NOT_EXISTS
+
+    return res.Status
 
 
 def averageAttendanceInStadium(stadiumID: int) -> float:
@@ -374,10 +382,10 @@ def averageAttendanceInStadium(stadiumID: int) -> float:
     if res.Status != ReturnValue.OK:
         return -1
 
-    if res.Set[0] == 0:
+    if res.RowsAffected == 0:
         return 0
 
-    row = res.Set[1].rows[0]
+    row = res.Set.rows[0]
     return 0 if row[0] is None else row[0]
 
 
@@ -392,10 +400,10 @@ def stadiumTotalGoals(stadiumID: int) -> int:
     if res.Status != ReturnValue.OK:
         return -1
 
-    if res.Set[0] == 0:
+    if res.RowsAffected == 0:
         return 0
 
-    row = res.Set[1].rows[0]
+    row = res.Set.rows[0]
     return 0 if row[0] is None else row[0]
 
 
