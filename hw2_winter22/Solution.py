@@ -15,6 +15,14 @@ from psycopg2 import sql
 Tables = []
 Views = []
 
+def _str(x) -> str:
+    if x is None:
+        return "NULL"
+
+    if isinstance(x, str):
+        return x
+
+    return str(x)
 
 def _errorHandling(e) -> ReturnValue:
     if isinstance(e, DatabaseException.NOT_NULL_VIOLATION) or \
@@ -124,7 +132,8 @@ def defineTables():
                                         colNames=["matchId", "stadiumId", "attendance"],
                                         colTypes=["int", "int", "int"],
                                         extraProperties=["PRIMARY KEY", "NOT NULL", "NOT NULL"],
-                                        foreignKey=[("matchId", "Matches(matchId)", True)])
+                                        foreignKey=[("matchId", "Matches(matchId)", True)],
+                                        checks=["attendance > 0"])
 
     Tables.append(table_Teams)
     Tables.append(table_Players)
@@ -200,14 +209,14 @@ def dropTables():
 # region Team
 
 def addTeam(teamID: int) -> ReturnValue:
-    q = "INSERT INTO Teams (teamId) VALUES (" + str(teamID) + ");"
+    q = "INSERT INTO Teams (teamId) VALUES (" + _str(teamID) + ");"
     return sendQuery(q).Status
 
 # endregion
 
 # region Match
 def _sqlToMatch(res: Connector.ResultSet) -> Match:
-    row = res.rows[0] #TODO
+    row = res.rows[0]
     matchId = row[0]
     competition = row[1]
     homeTeamID = row[2]
@@ -217,19 +226,19 @@ def _sqlToMatch(res: Connector.ResultSet) -> Match:
 
 
 def addMatch(match: Match) -> ReturnValue:
-    matchId = match.getMatchID() #TODO: convert int to string
+    matchId = match.getMatchID()
     competition = match.getCompetition()
     homeTeam = match.getHomeTeamID()
     awayTeam = match.getAwayTeamID()
 
     q = "INSERT INTO Matches (matchId ,competition, homeTeamId, awayTeamId) VALUES ("
-    q += str(matchId) + " , '" + competition + "' , " + str(homeTeam) + " , " + str(awayTeam) + " );"
+    q += _str(matchId) + " , '" + _str(competition) + "' , " + _str(homeTeam) + " , " + _str(awayTeam) + " );"
 
     return sendQuery(q).Status
 
 
 def getMatchProfile(matchID: int) -> Match:
-    q = "SELECT * FROM Matches WHERE matchId =" + str(matchID) + ";"
+    q = "SELECT * FROM Matches WHERE matchId =" + _str(matchID) + ";"
     res = sendQuery(q)
 
     if res.Status != ReturnValue.OK or res.RowsAffected == 0:
@@ -239,7 +248,7 @@ def getMatchProfile(matchID: int) -> Match:
 
 
 def deleteMatch(match: Match) -> ReturnValue:
-    q = "DELETE FROM Matches WHERE  matchId = " + str(match.getMatchID()) + ";"
+    q = "DELETE FROM Matches WHERE  matchId = " + _str(match.getMatchID()) + ";"
 
     res = sendQuery(q)
     if res.Status == ReturnValue.OK and res.RowsAffected == 0:
@@ -267,16 +276,16 @@ def addPlayer(player: Player) -> ReturnValue:
     foot = player.getFoot()
 
     q = "INSERT INTO players (playerId, teamId, age, height, foot) VALUES ("
-    q += str(playerId) + ", "
-    q += str(teamId) + ", "
-    q += str(age) + ", "
-    q += str(height) + ", "
-    q += "'" + str(foot) + "');"
+    q += _str(playerId) + ", "
+    q += _str(teamId) + ", "
+    q += _str(age) + ", "
+    q += _str(height) + ", "
+    q += "'" + _str(foot) + "');"
     return sendQuery(q).Status
 
 
 def getPlayerProfile(playerID: int) -> Player:
-    q = "SELECT * FROM players WHERE playerId =" + str(playerID) + ";"
+    q = "SELECT * FROM players WHERE playerId =" + _str(playerID) + ";"
     res = sendQuery(q)
 
     if res.Status != ReturnValue.OK or res.RowsAffected == 0:
@@ -286,7 +295,7 @@ def getPlayerProfile(playerID: int) -> Player:
 
 
 def deletePlayer(player: Player) -> ReturnValue:
-    q = "DELETE FROM players WHERE  playerId = " + str(player.getPlayerID()) + ";"
+    q = "DELETE FROM players WHERE  playerId = " + _str(player.getPlayerID()) + ";"
 
     res = sendQuery(q)
     if res.Status == ReturnValue.OK and res.RowsAffected == 0:
@@ -309,21 +318,17 @@ def addStadium(stadium: Stadium) -> ReturnValue:
     cap = stadium.getCapacity()
     belong = stadium.getBelongsTo()
 
-    q = "INSERT INTO stadiums (stadiumId, capacity"
-    if belong:  #TODO: Jonathan
-        q += ", teamId"
-    q += ") VALUES ("
-    q += str(stadiumId)
-    q += ", " + str(cap)
-    if belong:
-        q += ", " + str(belong)
+    q = "INSERT INTO stadiums (stadiumId, capacity, teamId) VALUES ("
+    q += _str(stadiumId)
+    q += ", " + _str(cap)
+    q += ", " + _str(belong)
     q += ")"
 
     return sendQuery(q).Status
 
 
 def getStadiumProfile(stadiumID: int) -> Stadium:
-    q = "SELECT * FROM stadiums WHERE stadiumId =" + str(stadiumID) + ";"
+    q = "SELECT * FROM stadiums WHERE stadiumId =" + _str(stadiumID) + ";"
     res = sendQuery(q)
 
     if res.Status != ReturnValue.OK or res.RowsAffected == 0:
@@ -333,7 +338,7 @@ def getStadiumProfile(stadiumID: int) -> Stadium:
 
 
 def deleteStadium(stadium: Stadium) -> ReturnValue:
-    q = "DELETE FROM stadiums WHERE  stadiumId = " + str(stadium.getStadiumID()) + ";"
+    q = "DELETE FROM stadiums WHERE  stadiumId = " + _str(stadium.getStadiumID()) + ";"
     res = sendQuery(q)
     if res.Status == ReturnValue.OK and res.RowsAffected == 0:
         return ReturnValue.NOT_EXISTS
@@ -344,14 +349,14 @@ def deleteStadium(stadium: Stadium) -> ReturnValue:
 # region Basic API
 def playerScoredInMatch(match: Match, player: Player, amount: int) -> ReturnValue:
     q = "INSERT INTO Scores (playerId, matchId, amount) VALUES ("
-    q += str(player.getPlayerID()) + ", "
-    q += str(match.getMatchID()) + ", "
-    q += str(amount) + ");"
+    q += _str(player.getPlayerID()) + ", "
+    q += _str(match.getMatchID()) + ", "
+    q += _str(amount) + ");"
     return sendQuery(q).Status
 
 
 def playerDidntScoreInMatch(match: Match, player: Player) -> ReturnValue:
-    q = "DELETE FROM Scores WHERE  matchId = " + str(match.getMatchID()) + " AND playerId = " + str(player.getPlayerID()) + ";"
+    q = "DELETE FROM Scores WHERE  matchId = " + _str(match.getMatchID()) + " AND playerId = " + _str(player.getPlayerID()) + ";"
 
     res = sendQuery(q)
     if res.Status == ReturnValue.OK and res.RowsAffected == 0:
@@ -362,14 +367,14 @@ def playerDidntScoreInMatch(match: Match, player: Player) -> ReturnValue:
 
 def matchInStadium(match: Match, stadium: Stadium, attendance: int) -> ReturnValue:
     q = "INSERT INTO MatchInStadium (matchId, stadiumId, attendance) VALUES ("
-    q += str(match.getMatchID())
-    q += ", " + str(stadium.getStadiumID())
-    q += ", " + str(attendance) + ");"
+    q += _str(match.getMatchID())
+    q += ", " + _str(stadium.getStadiumID())
+    q += ", " + _str(attendance) + ");"
     return sendQuery(q).Status
 
 
 def matchNotInStadium(match: Match, stadium: Stadium) -> ReturnValue:
-    q = "DELETE FROM MatchInStadium WHERE  matchId = " + str(match.getMatchID()) + " AND stadiumId = " + str(stadium.getStadiumID()) + ";"
+    q = "DELETE FROM MatchInStadium WHERE  matchId = " + _str(match.getMatchID()) + " AND stadiumId = " + _str(stadium.getStadiumID()) + ";"
 
     res = sendQuery(q)
     if res.Status == ReturnValue.OK and res.RowsAffected == 0:
@@ -379,7 +384,7 @@ def matchNotInStadium(match: Match, stadium: Stadium) -> ReturnValue:
 
 
 def averageAttendanceInStadium(stadiumID: int) -> float:
-    q = "SELECT AVG(attendance) FROM MatchInStadium WHERE stadiumId = " + str(stadiumID)
+    q = "SELECT AVG(attendance) FROM MatchInStadium WHERE stadiumId = " + _str(stadiumID)
 
     res = sendQuery(q)
     if res.Status != ReturnValue.OK:
@@ -393,11 +398,11 @@ def averageAttendanceInStadium(stadiumID: int) -> float:
 
 
 def stadiumTotalGoals(stadiumID: int) -> int:
-    # sum(amount) on [(matchInStadium where stadiumId == str(stadiumId)) join by matchId kind=leftOuter (scored)]
+    # sum(amount) on [(matchInStadium where stadiumId == _str(stadiumId)) join by matchId kind=leftOuter (scored)]
     q = "SELECT SUM(amount)"
     q += " FROM matchInStadium"
     q += " LEFT JOIN scores"
-    q += " ON matchInStadium.matchId = scores.matchId AND matchInStadium.stadiumId = " + str(stadiumID)
+    q += " ON matchInStadium.matchId = scores.matchId AND matchInStadium.stadiumId = " + _str(stadiumID)
 
     res = sendQuery(q)
     if res.Status != ReturnValue.OK:
@@ -411,9 +416,9 @@ def stadiumTotalGoals(stadiumID: int) -> int:
 
 
 def playerIsWinner(playerID: int, matchID: int) -> bool:
-    q = "SELECT amount FROM Scores WHERE playerId = " + str(playerID)
-    q += " AND matchID = " + str(matchID)
-    q += " UNION SELECT SUM(amount) FROM Scores WHERE matchID = " + str(matchID)
+    q = "SELECT amount FROM Scores WHERE playerId = " + _str(playerID)
+    q += " AND matchID = " + _str(matchID)
+    q += " UNION SELECT SUM(amount) FROM Scores WHERE matchID = " + _str(matchID)
     res = Connector.DBConnector().execute(query=q)
 
     rows = res[1].rows
