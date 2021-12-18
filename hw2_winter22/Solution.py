@@ -45,28 +45,27 @@ def sendQuery(query) -> collections.namedtuple("QueryResult", ["Status", "Set"])
     return queryResult(retValue, res)
 
 
-def _createTable(name, colNames, colTypes, extraProperties, foreignKey = None, references = None, explicitPrimaryKey = None):
+def _createTable(name, colNames, colTypes, extraProperties, foreignKey = None, explicitPrimaryKey = None):
     """
     :param name: The Table name
     :param colNames: a list of column names
     :param colTypes: a list of column types
     :param extraProperties: Extra properties per parameter. e.g: UNIQUE, PRIMARY KEY, NOT NULL, etc.
-    :param foreignKey: a list of col names (each name must be contained in 'colNames'), which are a foreign keys
-    :param references: a list of strings represent the references of the foreign keys. Should have a format of 'Table(relevantCol)'.
+    :param foreignKey: a list of tuple in the format of (col names, reference, toDelete).
+        colName is a col which is a foreign key.
+        The reference is the reference string in the format of Table(col).
+        toDelete is a boolean list that state whether a foreign key need to enforce delete from reference table
     :param explicitPrimaryKey: Sometimes, we'll want to set new col explicitly for a Primary key (mainly if the key consists multiple cols)
             Should be a tuple of ('newColName', 'col1, col2, col3')
     :return: a dictionary with the table metadata for the table generator
     """
     if foreignKey is None:
         foreignKey = []
-    if references is None:
-        references = []
     if explicitPrimaryKey is None:
         explicitPrimaryKey = []
 
     assert len(colNames) == len(colTypes)
     assert len(colNames) == len(extraProperties)
-    assert len(foreignKey) == len(references)
 
     return {
         "name": name,
@@ -74,13 +73,12 @@ def _createTable(name, colNames, colTypes, extraProperties, foreignKey = None, r
         "colTypes": colTypes,
         "extraProperties": extraProperties,
         "foreignKey": foreignKey,
-        "references": references,
         "explicitPrimaryKey": explicitPrimaryKey
     }
 
 # endregion
 
-# region Init
+# region table definitions
 def defineTables():
     table_Teams = _createTable(name="Teams",
                                colNames=["teamId"],
@@ -89,29 +87,26 @@ def defineTables():
 
     table_Players = _createTable(name="Players",
                                  colNames=["playerId", "teamId", "age", "height", "preferredFoot"],
-                                 colTypes=["int", "int", "int", "int", "varchar(255)"],
+                                 colTypes=["int", "int", "int", "int", "varchar(8)"],
                                  extraProperties=["PRIMARY KEY", "NOT NULL", "NOT NULL", "NOT NULL", "NOT NULL"],
-                                 foreignKey=["teamId"],
-                                 references=["Teams(teamId)"])
+                                 foreignKey=[("teamId", "Teams(teamId)", True)])
 
     table_Matches = _createTable(name="Matches",
                                  colNames=["matchId", "competition", "homeTeamId", "awayTeamId"],
-                                 colTypes=["int", "varchar(255)", "int", "int"],
+                                 colTypes=["int", "varchar(16)", "int", "int"],
                                  extraProperties=["PRIMARY KEY", "NOT NULL", "NOT NULL", "NOT NULL"])
 
     table_Stadiums = _createTable(name="Stadiums",
                                   colNames=["stadiumId", "capacity", "teamId"],
                                   colTypes=["int", "int", "int"],
                                   extraProperties=["PRIMARY KEY", "NOT NULL", "UNIQUE"],
-                                  foreignKey=["teamId"],
-                                  references=["Teams(teamId)"])
+                                  foreignKey=[("teamId", "Teams(teamId)", True)])
 
     table_Scores = _createTable(name="Scores",
                                 colNames=["playerId", "matchId", "amount"],
                                 colTypes=["int", "int", "int"],
                                 extraProperties=["NOT NULL", "NOT NULL", "NOT NULL"],
-                                foreignKey=["playerId", "matchId"],
-                                references=["Players(playerId)", "Matches(matchId)"],
+                                foreignKey=[("playerId", "Players(playerId)", True), ("matchId", "Matches(matchId)", True)],
                                 explicitPrimaryKey=[("match_player", "playerId, matchId")])
 
     table_MatchInStadium = _createTable(name="MatchInStadium",
@@ -125,7 +120,9 @@ def defineTables():
     Tables.append(table_Stadiums)
     Tables.append(table_Scores)
     Tables.append(table_MatchInStadium)
+# endregion
 
+# region Init
 
 def defineViews():
     view_ActiveTallTeams = {
@@ -155,14 +152,16 @@ def createTables():
                 q += ", "
 
         # add foreign keys if exists
-        for key, ref in zip(table["foreignKey"], table["references"]):
+        for key, ref, onDelete in table["foreignKey"]:
             q += ", FOREIGN KEY ("+key+") REFERENCES "+ref
+            if onDelete:
+                q += " ON DELETE CASCADE"
 
         # add special primary keys if exists
         for newCol, oldCols in table["explicitPrimaryKey"]:
             q += ", CONSTRAINT " + newCol + " PRIMARY KEY (" + oldCols + ")"
 
-        q += ")"
+        q += ");"
 
         sendQuery(q)
 
