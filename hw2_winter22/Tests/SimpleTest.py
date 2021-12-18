@@ -68,6 +68,7 @@ class Test(AbstractTest):
         self.assertEqual(ReturnValue.OK, Solution.addTeam(1), "Should work")
         self.assertEqual(ReturnValue.BAD_PARAMS, Solution.addPlayer(Player(1, 1, 20, 185, "Lefti like it")), "Bad String")
         self.assertEqual(ReturnValue.BAD_PARAMS, Solution.addMatch(Match(1, "Dome", 1, 2)), "Bad String")
+        self.assertEqual(ReturnValue.BAD_PARAMS, Solution.addMatch(Match(1, "domestic", 1, 2)), "Bad String")
 
     def test_PlayerScore(self):
         self.assertEqual(ReturnValue.OK, Solution.addTeam(1), "Should work")

@@ -207,7 +207,7 @@ def addTeam(teamID: int) -> ReturnValue:
 
 # region Match
 def _sqlToMatch(res: Connector.ResultSet) -> Match:
-    row = res[1].rows[0]
+    row = res.rows[0] #TODO
     matchId = row[0]
     competition = row[1]
     homeTeamID = row[2]
@@ -217,7 +217,7 @@ def _sqlToMatch(res: Connector.ResultSet) -> Match:
 
 
 def addMatch(match: Match) -> ReturnValue:
-    matchId = match.getMatchID()
+    matchId = match.getMatchID() #TODO: convert int to string
     competition = match.getCompetition()
     homeTeam = match.getHomeTeamID()
     awayTeam = match.getAwayTeamID()
@@ -251,7 +251,7 @@ def deleteMatch(match: Match) -> ReturnValue:
 
 # region Player
 def _sqlToPlayer(res: Connector.ResultSet) -> Player:
-    row = res[1].rows[0]
+    row = res.rows[0]
     return Player(playerID=row[0],
                   teamID=row[1],
                   age=row[2],
@@ -297,7 +297,7 @@ def deletePlayer(player: Player) -> ReturnValue:
 
 # region Stadium
 def _sqlToStadium(res: Connector.ResultSet) -> Stadium:
-    row = res[1].rows[0]
+    row = res.rows[0]
     return Stadium(stadiumID=row[0],
                    capacity=row[1],
                    belongsTo=row[2])
@@ -310,7 +310,7 @@ def addStadium(stadium: Stadium) -> ReturnValue:
     belong = stadium.getBelongsTo()
 
     q = "INSERT INTO stadiums (stadiumId, capacity"
-    if belong:
+    if belong:  #TODO: Jonathan
         q += ", teamId"
     q += ") VALUES ("
     q += str(stadiumId)
@@ -334,8 +334,11 @@ def getStadiumProfile(stadiumID: int) -> Stadium:
 
 def deleteStadium(stadium: Stadium) -> ReturnValue:
     q = "DELETE FROM stadiums WHERE  stadiumId = " + str(stadium.getStadiumID()) + ";"
+    res = sendQuery(q)
+    if res.Status == ReturnValue.OK and res.RowsAffected == 0:
+        return ReturnValue.NOT_EXISTS
 
-    return sendQuery(q).Status
+    return res.Status
 # endregion
 
 # region Basic API
