@@ -358,7 +358,7 @@ def matchInStadium(match: Match, stadium: Stadium, attendance: int) -> ReturnVal
 
 
 def matchNotInStadium(match: Match, stadium: Stadium) -> ReturnValue:
-    q = (sql.SQL("DELETE FROM MatchInStadium WHERE matchId = {matchID} AND stadiumId = {stadiumId};")
+    q = (sql.SQL("DELETE FROM MatchInStadium WHERE matchId = {matchId} AND stadiumId = {stadiumId};")
          .format(matchId=sql.Literal(match.getMatchID()),
                  stadiumId=sql.Literal(stadium.getStadiumID())))
 
