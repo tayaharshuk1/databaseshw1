@@ -84,8 +84,20 @@ class Test(AbstractTest):
         self.assertEqual(ReturnValue.BAD_PARAMS, Solution.playerScoredInMatch(Match(matchID=1), Player(playerID=1), -1), "amount not positive")
         self.assertEqual(ReturnValue.OK, Solution.playerScoredInMatch(Match(matchID=1), Player(playerID=1), 1), "Should work")
 
-
-
+    def test_playerIsWinner(self):
+        self.assertEqual(ReturnValue.OK, Solution.addTeam(1), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addTeam(2), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addPlayer(Player(1, 1, 20, 185, "Left")), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addPlayer(Player(2, 1, 20, 185, "Left")), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addMatch(Match(1, "Domestic", 1, 2)), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.playerScoredInMatch(Match(matchID=1), Player(playerID=1), 1), "Should work")
+        self.assertEqual(True, Solution.playerIsWinner(1, 1))
+        self.assertEqual(ReturnValue.OK, Solution.playerScoredInMatch(Match(matchID=1), Player(playerID=2), 1), "Should work")
+        self.assertEqual(True, Solution.playerIsWinner(1, 1))
+        self.assertEqual(ReturnValue.ALREADY_EXISTS, Solution.playerScoredInMatch(Match(matchID=1), Player(playerID=2), 1), "AlreadyExists")
+        self.assertEqual(ReturnValue.OK, Solution.playerDidntScoreInMatch(match=Match(1), player=Player(2)))
+        self.assertEqual(ReturnValue.OK, Solution.playerScoredInMatch(Match(matchID=1), Player(playerID=2), 2), "Should work")
+        self.assertEqual(False, Solution.playerIsWinner(1, 1))
 
 # *** DO NOT RUN EACH TEST MANUALLY ***
 if __name__ == '__main__':
