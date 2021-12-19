@@ -91,7 +91,7 @@ def _createView(name, query, toMaterialize):
 
 # endregion
 
-# region table definitions
+# region table & view definitions
 def defineTables():
     table_Teams = _createTable(name="Teams",
                                colNames=["teamId"],
@@ -140,20 +140,31 @@ def defineTables():
     Tables.append(table_Stadiums)
     Tables.append(table_Scores)
     Tables.append(table_MatchInStadium)
-# endregion
-
-# region Init
 
 def defineViews():
     view_personalStats = _createView(name="personalStats",
                                      query="SELECT Players.playerid, matchId, COALESCE(amount, 0) AS amount FROM Players LEFT JOIN scores ON Players.playerId = scores.playerId",
                                      toMaterialize=False)
-    # view_ActiveTallTeams =
+
+    view_ActiveTeams = _createView(name="activeTeams",
+                                   query="SELECT DISTINCT homeTeamId AS teamId FROM Matches UNION SELECT DISTINCT awayTeamId FROM Matches",
+                                   toMaterialize=False)
+
+    view_TallTeams = _createView(name="tallTeams",
+                                 query="SELECT teamId FROM (SELECT teamId, COUNT(*) FROM Players WHERE height > 190 GROUP BY teamId) countTable WHERE count >= 2",
+                                 toMaterialize=False)
+
+    view_ActiveTallTeams = _createView(name="activeTallTeams",
+                                       query="SELECT * FROM tallTeams INTERSECT SELECT * FROM activeTeams",
+                                       toMaterialize=False)
 
     Views.append(view_personalStats)
-    # Views.append(view_ActiveTallTeams)
+    Views.append(view_ActiveTeams)
+    Views.append(view_TallTeams)
+    Views.append(view_ActiveTallTeams)
+# endregion
 
-
+# region Init
 def createTables():
     defineTables()
     defineViews()
@@ -195,8 +206,7 @@ def createTables():
         if view["toMaterialize"]:
             q += "MATERIALIZED "
         q += "VIEW " + view["name"] + " AS " + view["query"] + ";"
-        r = sendQuery(q)
-        print(r.Status)
+        sendQuery(q)
 
 
 def clearTables():
@@ -434,35 +444,32 @@ def playerIsWinner(playerID: int, matchID: int) -> bool:
     return 2 * playerAmount >= totalAmount
 
 
-def getAllTallActiveTeamsQuery():
-    activeTeamsQ = ""   #TODO: from the views?
-    tallTeamsQ = ""  # TODO : group by?
-    q = activeTeamsQ + " INTERSECT " + tallTeamsQ
-    return q
-
-
 def getActiveTallTeams() -> List[int]:
-    q = getAllTallActiveTeamsQuery() + " ORDER BY teamId DESC LIMIT 5"
-
-    res = Connector.DBConnector().execute(query=q)
+    q = "SELECT * FROM activeTallTeams ORDER BY teamId DESC LIMIT 5"
     teams = []
-    for row in res[1]:
+
+    res = sendQuery(q)
+
+    if res.Status != ReturnValue.OK:
+        return teams
+
+    for row in res.Set.rows:
         teams.append(row[0])
-        # TODO: check of int
 
     return teams
 
 
 def getActiveTallRichTeams() -> List[int]:
-    activeTallTeamsQ = getAllTallActiveTeamsQuery()
-    richTeams = "SELECT teamID FROM Stadiums WHERE capacity>" + str(55000)   #TODO :check
-    q = activeTallTeamsQ + " INTERSECT " + richTeams + " ORDER BY teamId ASC LIMIT 5"
-
-    res = Connector.DBConnector().execute(query=q)
+    q = "SELECT teamId FROM activeTallTeams INTERSECT SELECT teamId FROM Stadiums WHERE capacity > 55000 ORDER BY teamId ASC LIMIT 5"
     teams = []
-    for row in res[1]:
+
+    res = sendQuery(q)
+
+    if res.Status != ReturnValue.OK:
+        return teams
+
+    for row in res.Set.rows:
         teams.append(row[0])
-        # TODO: check of int
 
     return teams
 

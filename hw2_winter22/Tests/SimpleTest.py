@@ -99,6 +99,57 @@ class Test(AbstractTest):
         self.assertEqual(ReturnValue.OK, Solution.playerScoredInMatch(Match(matchID=1), Player(playerID=2), 2), "Should work")
         self.assertEqual(False, Solution.playerIsWinner(1, 1))
 
+    def test_activeTallTeams1(self):
+        """
+        team 1 both tall and active
+        team 2 is active
+        team 3 is tall
+        team 4 neither
+        """
+        self.assertEqual(ReturnValue.OK, Solution.addTeam(1), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addTeam(2), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addTeam(3), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addTeam(4), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addMatch(Match(1, "Domestic", 1, 2)), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addPlayer(Player(1, 1, 20, 195, "Left")), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addPlayer(Player(2, 1, 20, 195, "Left")), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addPlayer(Player(3, 3, 20, 195, "Left")), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addPlayer(Player(4, 3, 20, 195, "Left")), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addPlayer(Player(5, 2, 20, 190, "Left")), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addPlayer(Player(6, 2, 20, 190, "Left")), "Should work")
+        self.assertEqual([1], Solution.getActiveTallTeams())
+
+    def test_activeTallTeams2(self):
+        self.assertEqual(ReturnValue.OK, Solution.addTeam(1), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addTeam(2), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addTeam(3), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addTeam(4), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addTeam(5), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addTeam(6), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addMatch(Match(1, "Domestic", 1, 2)), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addMatch(Match(2, "Domestic", 3, 4)), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addMatch(Match(3, "Domestic", 5, 6)), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addPlayer(Player(1, 1, 20, 195, "Left")), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addPlayer(Player(2, 1, 20, 195, "Left")), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addPlayer(Player(3, 2, 20, 195, "Left")), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addPlayer(Player(4, 2, 20, 195, "Left")), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addPlayer(Player(5, 3, 20, 195, "Left")), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addPlayer(Player(6, 3, 20, 195, "Left")), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addPlayer(Player(11, 6, 20, 195, "Left")), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addPlayer(Player(12, 6, 20, 195, "Left")), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addPlayer(Player(7, 4, 20, 195, "Left")), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addPlayer(Player(8, 4, 20, 195, "Left")), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addPlayer(Player(9, 5, 20, 195, "Left")), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addPlayer(Player(10, 5, 20, 195, "Left")), "Should work")
+        self.assertEqual([6, 5, 4, 3, 2], Solution.getActiveTallTeams())
+
+
+
+
+
+
+
+
 # *** DO NOT RUN EACH TEST MANUALLY ***
 if __name__ == '__main__':
     unittest.main(verbosity=2, exit=False)
