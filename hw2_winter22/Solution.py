@@ -82,6 +82,13 @@ def _createTable(name, colNames, colTypes, extraProperties, foreignKey = None, c
         "extraStatements": extraStatements
     }
 
+def _createView(name, query, toMaterialize):
+    return {
+        "name": name,
+        "query": query,
+        "toMaterialize": toMaterialize
+    }
+
 # endregion
 
 # region table definitions
@@ -138,12 +145,13 @@ def defineTables():
 # region Init
 
 def defineViews():
-    view_ActiveTallTeams = {
-        "name": "",
-        "query": "ActiveTallTeams",  # TODO
-        "materialized": False
-    }
-    Views.append(view_ActiveTallTeams)
+    view_personalStats = _createView(name="personalStats",
+                                     query="SELECT Players.playerid, matchId, COALESCE(amount, 0) AS amount FROM Players LEFT JOIN scores ON Players.playerId = scores.playerId",
+                                     toMaterialize=False)
+    # view_ActiveTallTeams =
+
+    Views.append(view_personalStats)
+    # Views.append(view_ActiveTallTeams)
 
 
 def createTables():
@@ -183,7 +191,12 @@ def createTables():
         sendQuery(q)
 
     for view in Views:
-        pass  # TODO : Jonathan
+        q = "CREATE "
+        if view["toMaterialize"]:
+            q += "MATERIALIZED "
+        q += "VIEW " + view["name"] + " AS " + view["query"] + ";"
+        r = sendQuery(q)
+        print(r.Status)
 
 
 def clearTables():
@@ -192,9 +205,17 @@ def clearTables():
 
 
 def dropTables():
+    for view in reversed(Views):
+        q = "DROP "
+        if view["toMaterialize"]:
+            q += "MATERIALIZED "
+        q += "VIEW " + view["name"]
+        sendQuery(q)
+
     for table in reversed(Tables):
         q = "DROP TABLE " + table["name"]
         sendQuery(q)
+
 
 # endregion
 
@@ -339,8 +360,8 @@ def playerScoredInMatch(match: Match, player: Player, amount: int) -> ReturnValu
 
 
 def playerDidntScoreInMatch(match: Match, player: Player) -> ReturnValue:
-    q = (sql.SQL("DELETE FROM Scores WHERE  matchId = {matchID} AND playerId = {playerId};")
-         .format(matchId = sql.Literal(match.getMatchID()), playerId = sql.Literal(player.getPlayerID())))
+    q = (sql.SQL("DELETE FROM Scores WHERE  matchId = {matchId} AND playerId = {playerId};")
+         .format(matchId=sql.Literal(match.getMatchID()), playerId=sql.Literal(player.getPlayerID())))
 
     res = sendQuery(q)
     if res.Status == ReturnValue.OK and res.RowsAffected == 0:
@@ -399,17 +420,17 @@ def stadiumTotalGoals(stadiumID: int) -> int:
 
 
 def playerIsWinner(playerID: int, matchID: int) -> bool:
-    q = (sql.SQL("SELECT COALESCE(amount, 0) FROM Scores WHERE playerId = {playerID} AND matchID = {matchID}"
-                 " UNION SELECT SUM(amount) FROM Scores WHERE matchID = {matchID}")
+    q = (sql.SQL("SELECT amount FROM personalStats WHERE playerId = {playerID} AND matchID = {matchID}"
+                 " UNION ALL SELECT SUM(amount) FROM Scores WHERE matchID = {matchID}")
          .format(playerID=sql.Literal(playerID), matchID=sql.Literal(matchID)))
 
-    # TODO: View that project scores on Player
     res = sendQuery(q)
 
-    playerRow = res.Set.rows[0]
-    totalRow = res.Set.rows[1]
-    playerAmount = playerRow[0]
-    totalAmount = totalRow[0]
+    if res.Status != ReturnValue.OK or res.RowsAffected < 2:
+        return False
+
+    playerAmount = res.Set.rows[0][0]
+    totalAmount = res.Set.rows[1][0]
     return 2 * playerAmount >= totalAmount
 
 
@@ -434,7 +455,7 @@ def getActiveTallTeams() -> List[int]:
 
 def getActiveTallRichTeams() -> List[int]:
     activeTallTeamsQ = getAllTallActiveTeamsQuery()
-    richTeams = "SELECT teamID FROM Stadiums WHERE capacity>" + _str(55000)   #TODO :check
+    richTeams = "SELECT teamID FROM Stadiums WHERE capacity>" + str(55000)   #TODO :check
     q = activeTallTeamsQ + " INTERSECT " + richTeams + " ORDER BY teamId ASC LIMIT 5"
 
     res = Connector.DBConnector().execute(query=q)
