@@ -430,8 +430,8 @@ def playerIsWinner(playerID: int, matchID: int) -> bool:
 
 
 def getAllTallActiveTeamsQuery():
-    activeTeamsQ = ""  # TODO
-    tallTeamsQ = ""  # TODO
+    activeTeamsQ = ""   #TODO: from the views?
+    tallTeamsQ = ""  # TODO : group by?
     q = activeTeamsQ + " INTERSECT " + tallTeamsQ
     return q
 
@@ -450,8 +450,8 @@ def getActiveTallTeams() -> List[int]:
 
 def getActiveTallRichTeams() -> List[int]:
     activeTallTeamsQ = getAllTallActiveTeamsQuery()
-    reachTeams = " "  # TODO
-    q = activeTallTeamsQ + " INTERSECT " + reachTeams + " ORDER BY teamId ASC LIMIT 5"
+    richTeams = "SELECT teamID FROM Stadiums WHERE capacity>" + _str(55000)   #TODO :check
+    q = activeTallTeamsQ + " INTERSECT " + richTeams + " ORDER BY teamId ASC LIMIT 5"
 
     res = Connector.DBConnector().execute(query=q)
     teams = []
