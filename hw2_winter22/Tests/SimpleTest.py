@@ -238,9 +238,65 @@ class Test(AbstractTest):
         self.assertEqual(ReturnValue.OK, Solution.playerScoredInMatch(Match(matchID=1), Player(playerID=5), 7), "Should work")
         self.assertEqual([2, 4, 1, 7, 6], Solution.mostGoalsForTeam(1))
 
+    def test_getClosePlayers(self):
+        """
+        player 1, Scored in 4 matches (ids: 1, 2, 3, 4) 20 goals
+        player 2, didn't score at all
+        player 3, scored in 4 matches, (ids: 3, 4, 5, 6) // close to 1
+        player 4, scored in 2 matches, (ids: 4, 5) // not close to 1
+        player 5, scored in 1 match, (ids: 4) // not close to 1
+        player 6, scored in all 7 matches // close to 1
+        player 7, scored in 4 matches (id: 4, 5, 6, 7) // not close to 1
+        player 8, 9, 10, 11, 12 didn't score at all
 
-
-
+        :return: Close to player 1 : [6, 3]
+        :return: Close to player 8 : [12, 11, 10, 9, 7, 6, 5, 4, 3, 2]
+        """
+        self.assertEqual(ReturnValue.OK, Solution.addTeam(1), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addTeam(2), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addPlayer(Player(1, 1, 20, 195, "Left")), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addPlayer(Player(2, 1, 20, 195, "Left")), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addPlayer(Player(3, 1, 20, 195, "Left")), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addPlayer(Player(4, 1, 20, 195, "Left")), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addPlayer(Player(5, 2, 20, 195, "Left")), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addPlayer(Player(6, 2, 20, 195, "Left")), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addPlayer(Player(7, 2, 20, 195, "Left")), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addPlayer(Player(8, 2, 20, 195, "Left")), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addPlayer(Player(9, 2, 20, 195, "Left")), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addPlayer(Player(10, 2, 20, 195, "Left")), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addPlayer(Player(11, 2, 20, 195, "Left")), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addPlayer(Player(12, 2, 20, 195, "Left")), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addMatch(Match(1, "Domestic", 1, 2)), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addMatch(Match(2, "Domestic", 1, 2)), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addMatch(Match(3, "Domestic", 1, 2)), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addMatch(Match(4, "Domestic", 1, 2)), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addMatch(Match(5, "Domestic", 1, 2)), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addMatch(Match(6, "Domestic", 2, 1)), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addMatch(Match(7, "Domestic", 2, 1)), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.playerScoredInMatch(Match(matchID=1), Player(playerID=1), 5), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.playerScoredInMatch(Match(matchID=2), Player(playerID=1), 5), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.playerScoredInMatch(Match(matchID=3), Player(playerID=1), 5), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.playerScoredInMatch(Match(matchID=4), Player(playerID=1), 5), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.playerScoredInMatch(Match(matchID=3), Player(playerID=3), 1), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.playerScoredInMatch(Match(matchID=4), Player(playerID=3), 1), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.playerScoredInMatch(Match(matchID=5), Player(playerID=3), 1), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.playerScoredInMatch(Match(matchID=6), Player(playerID=3), 1), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.playerScoredInMatch(Match(matchID=4), Player(playerID=4), 1), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.playerScoredInMatch(Match(matchID=5), Player(playerID=4), 1), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.playerScoredInMatch(Match(matchID=4), Player(playerID=5), 1), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.playerScoredInMatch(Match(matchID=1), Player(playerID=6), 1), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.playerScoredInMatch(Match(matchID=2), Player(playerID=6), 1), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.playerScoredInMatch(Match(matchID=3), Player(playerID=6), 1), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.playerScoredInMatch(Match(matchID=4), Player(playerID=6), 1), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.playerScoredInMatch(Match(matchID=5), Player(playerID=6), 1), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.playerScoredInMatch(Match(matchID=6), Player(playerID=6), 1), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.playerScoredInMatch(Match(matchID=7), Player(playerID=6), 1), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.playerScoredInMatch(Match(matchID=4), Player(playerID=7), 1), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.playerScoredInMatch(Match(matchID=5), Player(playerID=7), 1), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.playerScoredInMatch(Match(matchID=6), Player(playerID=7), 1), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.playerScoredInMatch(Match(matchID=7), Player(playerID=7), 1), "Should work")
+        self.assertEqual([3, 6], Solution.getClosePlayers(1))
+        self.assertEqual([1, 2, 3, 4, 5, 6, 7, 9, 10, 11], Solution.getClosePlayers(8))
 
 
 

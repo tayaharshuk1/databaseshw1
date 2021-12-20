@@ -40,6 +40,7 @@ def sendQuery(query) -> collections.namedtuple("QueryResult", ["Status", "RowsAf
     try:
         res = dbConnector.execute(query=query)
     except BaseException as e:
+        print(e)    #TODO
         retValue = _errorHandling(e)
     finally:
         dbConnector.close()
@@ -182,6 +183,12 @@ def defineViews():
                                                   "GROUP BY stadiumId",
                                             toMaterialize=False)
 
+    view_friends = _createView(name="friends",
+                               query="SELECT P1.PlayerId AS pid1, P2.PlayerId AS pid2 FROM Scores P1, Scores P2 WHERE P1.matchId = P2.matchId",
+                               toMaterialize=False)
+
+
+
     Views.append(view_personalStats)
     Views.append(view_goalsPerMatch)
     Views.append(view_goalsPerPlayer)
@@ -190,6 +197,7 @@ def defineViews():
     Views.append(view_ActiveTallTeams)
     Views.append(view_minAttendancePerTeam)
     Views.append(view_goalsPerStadium)
+    Views.append(view_friends)
 # endregion
 
 # region Init
@@ -551,5 +559,19 @@ def mostGoalsForTeam(teamID: int) -> List[int]:
 
 
 def getClosePlayers(playerID: int) -> List[int]:
-    pass
+    players = []
+    str_nested1 = "SELECT pid1, COUNT(pid1) AS playedTogether FROM friends WHERE pid2 = {playerId} GROUP BY pid1"
+    str_nested2 = "SELECT Players.playerId AS pid, COALESCE(n1.playedTogether, 0) AS playedTogether FROM Players LEFT JOIN (" + str_nested1 + ") n1 ON Players.playerId = n1.pid1"
+    str_q = "SELECT n2.pid FROM (SELECT MAX(n2.playedTogether) AS max FROM (" + str_nested2 + ") n2) n3, (" + str_nested2 + ") n2 WHERE n2.pid <> {playerId} AND n2.playedTogether * 2 >= n3.max ORDER BY n2.pid ASC LIMIT 10"
+
+    q = sql.SQL(str_q).format(playerId=sql.Literal(playerID))
+    res = sendQuery(q)
+
+    if res.Status != ReturnValue.OK:
+        return players
+
+    for row in res.Set.rows:
+        players.append(row[0])
+
+    return players
 # endregion
