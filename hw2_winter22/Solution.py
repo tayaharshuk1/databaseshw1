@@ -40,7 +40,6 @@ def sendQuery(query) -> collections.namedtuple("QueryResult", ["Status", "RowsAf
     try:
         res = dbConnector.execute(query=query)
     except BaseException as e:
-        print(e)    #TODO
         retValue = _errorHandling(e)
     finally:
         dbConnector.close()
@@ -562,7 +561,9 @@ def getClosePlayers(playerID: int) -> List[int]:
     players = []
     str_nested1 = "SELECT pid1, COUNT(pid1) AS playedTogether FROM friends WHERE pid2 = {playerId} GROUP BY pid1"
     str_nested2 = "SELECT Players.playerId AS pid, COALESCE(n1.playedTogether, 0) AS playedTogether FROM Players LEFT JOIN (" + str_nested1 + ") n1 ON Players.playerId = n1.pid1"
-    str_q = "SELECT n2.pid FROM (SELECT MAX(n2.playedTogether) AS max FROM (" + str_nested2 + ") n2) n3, (" + str_nested2 + ") n2 WHERE n2.pid <> {playerId} AND n2.playedTogether * 2 >= n3.max ORDER BY n2.pid ASC LIMIT 10"
+    str_q = ("SELECT n2.pid "
+             "FROM (SELECT MAX(n2.playedTogether) AS max FROM (" + str_nested2 + ") n2) n3, (" + str_nested2 + ") n2 "
+             "WHERE n2.pid <> {playerId} AND n2.playedTogether * 2 >= n3.max ORDER BY n2.pid ASC LIMIT 10")
 
     q = sql.SQL(str_q).format(playerId=sql.Literal(playerID))
     res = sendQuery(q)
