@@ -312,7 +312,7 @@ def getPlayerProfile(playerID: int) -> Player:
 
 
 def deletePlayer(player: Player) -> ReturnValue:
-    q = sql.SQL("DELETE FROM players WHERE  playerId = {playerID};").format(playerId=player.getPlayerID())
+    q = sql.SQL("DELETE FROM players WHERE  playerId = {playerId};").format(playerId=sql.Literal(player.getPlayerID()))
 
     res = sendQuery(q)
     if res.Status == ReturnValue.OK and res.RowsAffected == 0:
@@ -401,7 +401,7 @@ def matchNotInStadium(match: Match, stadium: Stadium) -> ReturnValue:
 
 
 def averageAttendanceInStadium(stadiumID: int) -> float:
-    q = sql.SQL("SELECT AVG(attendance) FROM MatchInStadium WHERE stadiumId = {x}").format(x=sql.Literal(stadiumID))
+    q = sql.SQL("SELECT COALESCE(AVG(attendance), 0) FROM MatchInStadium WHERE stadiumId = {x}").format(x=sql.Literal(stadiumID))
 
     res = sendQuery(q)
     if res.Status != ReturnValue.OK:
@@ -411,11 +411,11 @@ def averageAttendanceInStadium(stadiumID: int) -> float:
         return 0
 
     row = res.Set.rows[0]
-    return 0 if row[0] is None else row[0]
+    return row[0]
 
 
 def stadiumTotalGoals(stadiumID: int) -> int:
-    q = (sql.SQL("SELECT SUM(amount) FROM matchInStadium LEFT JOIN scores ON matchInStadium.matchId = scores.matchId AND matchInStadium.stadiumId = {x}")
+    q = (sql.SQL("SELECT COALESCE(SUM(amount), 0) FROM matchInStadium LEFT JOIN scores ON matchInStadium.matchId = scores.matchId AND matchInStadium.stadiumId = {x}")
          .format(x=sql.Literal(stadiumID)))
 
     res = sendQuery(q)
@@ -426,7 +426,7 @@ def stadiumTotalGoals(stadiumID: int) -> int:
         return 0
 
     row = res.Set.rows[0]
-    return 0 if row[0] is None else row[0]
+    return row[0]
 
 
 def playerIsWinner(playerID: int, matchID: int) -> bool:
