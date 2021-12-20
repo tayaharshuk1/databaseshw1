@@ -16,7 +16,7 @@ Tables = []
 Views = []
 
 
-def _errorHandling(e) -> ReturnValue:
+def _errorHandling(e, isCrud: bool = False) -> ReturnValue:
     if isinstance(e, DatabaseException.NOT_NULL_VIOLATION) or \
             isinstance(e, DatabaseException.CHECK_VIOLATION):
         return ReturnValue.BAD_PARAMS
@@ -24,8 +24,11 @@ def _errorHandling(e) -> ReturnValue:
     if isinstance(e, DatabaseException.UNIQUE_VIOLATION):
         return ReturnValue.ALREADY_EXISTS
 
-    if isinstance(e, DatabaseException.FOREIGN_KEY_VIOLATION):
+    if isinstance(e, DatabaseException.FOREIGN_KEY_VIOLATION) and isCrud:
         return ReturnValue.BAD_PARAMS
+
+    if isinstance(e, DatabaseException.FOREIGN_KEY_VIOLATION):
+        return ReturnValue.NOT_EXISTS
 
     if e.pgcode == '22001':                 # Special treatment to a case of string too large
         return ReturnValue.BAD_PARAMS
@@ -33,14 +36,14 @@ def _errorHandling(e) -> ReturnValue:
     return ReturnValue.ERROR
 
 
-def sendQuery(query) -> collections.namedtuple("QueryResult", ["Status", "RowsAffected","Set"]):
+def sendQuery(query, isCrud: bool = False) -> collections.namedtuple("QueryResult", ["Status", "RowsAffected","Set"]):
     dbConnector = Connector.DBConnector()
     retValue = ReturnValue.OK
     res = None
     try:
         res = dbConnector.execute(query=query)
     except BaseException as e:
-        retValue = _errorHandling(e)
+        retValue = _errorHandling(e, isCrud)
     finally:
         dbConnector.close()
 
@@ -245,9 +248,9 @@ def createTables():
 
 
 def clearTables():
-    #TODO Clean views
-    for table in Tables:
+    for table in reversed(Tables):
         q = "DELETE FROM " + table["name"]
+        sendQuery(q)
 
 
 def dropTables():
@@ -269,7 +272,7 @@ def dropTables():
 
 def addTeam(teamID: int) -> ReturnValue:
     q = sql.SQL("INSERT INTO Teams (teamId) VALUES ({teamID});").format(teamID=sql.Literal(teamID))
-    return sendQuery(q).Status
+    return sendQuery(q, True).Status
 
 # endregion
 
@@ -292,7 +295,7 @@ def addMatch(match: Match) -> ReturnValue:
                  awayTeamId=sql.Literal(match.getAwayTeamID())
                  ))
 
-    return sendQuery(q).Status
+    return sendQuery(q, True).Status
 
 
 def getMatchProfile(matchID: int) -> Match:
@@ -334,7 +337,7 @@ def addPlayer(player: Player) -> ReturnValue:
                  height=sql.Literal(player.getHeight()),
                  foot=sql.Literal(player.getFoot())
                  ))
-    return sendQuery(q).Status
+    return sendQuery(q, True).Status
 
 
 def getPlayerProfile(playerID: int) -> Player:
@@ -373,7 +376,7 @@ def addStadium(stadium: Stadium) -> ReturnValue:
                  cap=sql.Literal(stadium.getCapacity()),
                  belong=sql.Literal(stadium.getBelongsTo())))
 
-    return sendQuery(q).Status
+    return sendQuery(q, True).Status
 
 
 def getStadiumProfile(stadiumID: int) -> Stadium:
