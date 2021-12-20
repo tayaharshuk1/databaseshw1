@@ -143,6 +143,34 @@ class Test(AbstractTest):
         self.assertEqual(ReturnValue.OK, Solution.addPlayer(Player(10, 5, 20, 195, "Left")), "Should work")
         self.assertEqual([6, 5, 4, 3, 2], Solution.getActiveTallTeams())
 
+    def test_popularTeams(self):
+        """
+        team 1 is popular by definition
+        team 2 is popular in empty way
+        team 3 isn't popular
+        team 4 is popular
+        team 5 isn't popular
+        team 6 is popular in empty way
+        :return:
+        """
+        self.assertEqual(ReturnValue.OK, Solution.addTeam(1), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addTeam(2), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addTeam(3), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addTeam(4), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addTeam(5), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addTeam(6), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addMatch(Match(1, "Domestic", 1, 2)), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addMatch(Match(2, "Domestic", 3, 4)), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addMatch(Match(3, "Domestic", 4, 5)), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addMatch(Match(4, "Domestic", 5, 1)), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addMatch(Match(5, "Domestic", 3, 4)), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addStadium(Stadium(1, 50000, 1)), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.matchInStadium(match=Match(1), stadium=Stadium(1), attendance=40001))
+        self.assertEqual(ReturnValue.OK, Solution.matchInStadium(match=Match(2), stadium=Stadium(1), attendance=40000))
+        self.assertEqual(ReturnValue.OK, Solution.matchInStadium(match=Match(3), stadium=Stadium(1), attendance=40001))
+        self.assertEqual(ReturnValue.OK, Solution.matchInStadium(match=Match(5), stadium=Stadium(1), attendance=50000))
+        self.assertEqual([6, 4, 2, 1], Solution.popularTeams())
+
 
 
 

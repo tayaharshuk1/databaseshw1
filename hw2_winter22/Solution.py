@@ -48,7 +48,7 @@ def sendQuery(query) -> collections.namedtuple("QueryResult", ["Status", "RowsAf
     return queryResult(retValue, None if res is None else res[0], None if res is None else res[1])
 
 
-def _createTable(name, colNames, colTypes, extraProperties, foreignKey = None, checks=None, extraStatements = None):
+def _createTable(name, colNames, colTypes, extraProperties, foreignKey=None, checks=None, extraStatements=None):
     """
     :param name: The Table name
     :param colNames: a list of column names
@@ -81,6 +81,7 @@ def _createTable(name, colNames, colTypes, extraProperties, foreignKey = None, c
         "checks": checks,
         "extraStatements": extraStatements
     }
+
 
 def _createView(name, query, toMaterialize):
     return {
@@ -141,6 +142,7 @@ def defineTables():
     Tables.append(table_Scores)
     Tables.append(table_MatchInStadium)
 
+
 def defineViews():
     view_personalStats = _createView(name="personalStats",
                                      query="SELECT Players.playerid, matchId, COALESCE(amount, 0) AS amount FROM Players LEFT JOIN scores ON Players.playerId = scores.playerId",
@@ -158,10 +160,17 @@ def defineViews():
                                        query="SELECT * FROM tallTeams INTERSECT SELECT * FROM activeTeams",
                                        toMaterialize=False)
 
+    view_minAttendancePerTeam = _createView(name="minAttendancePerTeam",
+                                            query="SELECT homeTeamId AS teamId, MIN(COALESCE(attendance, 0)) AS attendance "
+                                                  "FROM Matches LEFT JOIN MatchInStadium ON Matches.matchId = MatchInStadium.matchId "
+                                                  "GROUP BY homeTeamId",
+                                            toMaterialize=False)
+
     Views.append(view_personalStats)
     Views.append(view_ActiveTeams)
     Views.append(view_TallTeams)
     Views.append(view_ActiveTallTeams)
+    Views.append(view_minAttendancePerTeam)
 # endregion
 
 # region Init
@@ -475,8 +484,19 @@ def getActiveTallRichTeams() -> List[int]:
 
 
 def popularTeams() -> List[int]:
-    pass
+    teams = []
+    q = ("SELECT teamId FROM "
+         "(SELECT Teams.teamId AS teamId, attendance FROM Teams LEFT JOIN minAttendancePerTeam ON Teams.teamId = minAttendancePerTeam.teamId) t"
+         " WHERE attendance > 40000 OR attendance IS NULL ORDER BY teamId DESC LIMIT 10")
+    res = sendQuery(q)
 
+    if res.Status != ReturnValue.OK:
+        return teams
+
+    for row in res.Set.rows:
+        teams.append(row[0])
+
+    return teams
 # endregion
 
 # region Advanced API
