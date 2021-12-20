@@ -148,6 +148,10 @@ def defineViews():
                                      query="SELECT Players.playerid, matchId, COALESCE(amount, 0) AS amount FROM Players LEFT JOIN scores ON Players.playerId = scores.playerId",
                                      toMaterialize=False)
 
+    view_goalsPerMatch = _createView(name="goalsPerMatch",
+                                     query="SELECT SUM(amount) AS goals, matchId FROM Scores GROUP BY matchId",
+                                     toMaterialize=False)
+
     view_ActiveTeams = _createView(name="activeTeams",
                                    query="SELECT DISTINCT homeTeamId AS teamId FROM Matches UNION SELECT DISTINCT awayTeamId FROM Matches",
                                    toMaterialize=False)
@@ -166,11 +170,20 @@ def defineViews():
                                                   "GROUP BY homeTeamId",
                                             toMaterialize=False)
 
+    # In stadiums that had matches in them
+    view_goalsPerStadium = _createView(name="goalsPerStadium",
+                                            query="SELECT stadiumId, SUM(COALESCE(goals, 0)) AS goals "
+                                                  "FROM matchInStadium LEFT JOIN goalsPerMatch ON matchInStadium.matchId = goalsPerMatch.matchId "
+                                                  "GROUP BY stadiumId",
+                                            toMaterialize=False)
+
     Views.append(view_personalStats)
+    Views.append(view_goalsPerMatch)
     Views.append(view_ActiveTeams)
     Views.append(view_TallTeams)
     Views.append(view_ActiveTallTeams)
     Views.append(view_minAttendancePerTeam)
+    Views.append(view_goalsPerStadium)
 # endregion
 
 # region Init
@@ -440,7 +453,7 @@ def stadiumTotalGoals(stadiumID: int) -> int:
 
 def playerIsWinner(playerID: int, matchID: int) -> bool:
     q = (sql.SQL("SELECT amount FROM personalStats WHERE playerId = {playerID} AND matchID = {matchID}"
-                 " UNION ALL SELECT SUM(amount) FROM Scores WHERE matchID = {matchID}")
+                 " UNION ALL SELECT goals AS amount FROM goalsPerMatch WHERE matchID = {matchID}")
          .format(playerID=sql.Literal(playerID), matchID=sql.Literal(matchID)))
 
     res = sendQuery(q)
@@ -501,7 +514,19 @@ def popularTeams() -> List[int]:
 
 # region Advanced API
 def getMostAttractiveStadiums() -> List[int]:
-    pass
+    stadiums = []
+    q = ("SELECT Stadiums.stadiumId AS stadiumId, COALESCE(goals, 0) AS goals FROM Stadiums "
+         "LEFT JOIN goalsPerStadium ON Stadiums.stadiumId = goalsPerStadium.stadiumId "
+         "ORDER BY goals DESC, stadiumId ASC;")
+    res = sendQuery(q)
+
+    if res.Status != ReturnValue.OK:
+        return stadiums
+
+    for row in res.Set.rows:
+        stadiums.append(row[0])
+
+    return stadiums
 
 
 def mostGoalsForTeam(teamID: int) -> List[int]:

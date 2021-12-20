@@ -171,6 +171,44 @@ class Test(AbstractTest):
         self.assertEqual(ReturnValue.OK, Solution.matchInStadium(match=Match(5), stadium=Stadium(1), attendance=50000))
         self.assertEqual([6, 4, 2, 1], Solution.popularTeams())
 
+    def test_getMostAttractiveStadiums(self):
+        """
+        Stadium 1 : 1 Match of 3 goal
+        Stadium 2 : 2 Matches 2 goals + 2 goals (total of 4 goals)
+        Stadium 3 : 2 Match of 2 goals + 1 goal (total of 3 goals)
+        Stadium 4 : no matches
+        Stadium 5 : 1 Match, no goals
+        :return: [2, 1, 3, 4, 5]
+        """
+        self.assertEqual(ReturnValue.OK, Solution.addTeam(1), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addTeam(2), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addPlayer(Player(1, 1, 20, 195, "Left")), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addMatch(Match(1, "Domestic", 1, 2)), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addMatch(Match(2, "Domestic", 1, 2)), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addMatch(Match(3, "Domestic", 1, 2)), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addMatch(Match(4, "Domestic", 1, 2)), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addMatch(Match(5, "Domestic", 1, 2)), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addMatch(Match(6, "Domestic", 1, 2)), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addStadium(Stadium(1, 50000, 1)), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addStadium(Stadium(2, 50000, 2)), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addStadium(Stadium(3, 50000, None)), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addStadium(Stadium(4, 50000, None)), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addStadium(Stadium(5, 50000, None)), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.matchInStadium(match=Match(1), stadium=Stadium(1), attendance=40001))
+        self.assertEqual(ReturnValue.OK, Solution.playerScoredInMatch(Match(matchID=1), Player(playerID=1), 3), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.matchInStadium(match=Match(2), stadium=Stadium(2), attendance=40001))
+        self.assertEqual(ReturnValue.OK, Solution.matchInStadium(match=Match(3), stadium=Stadium(2), attendance=40001))
+        self.assertEqual(ReturnValue.OK, Solution.playerScoredInMatch(Match(matchID=2), Player(playerID=1), 2), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.playerScoredInMatch(Match(matchID=3), Player(playerID=1), 2), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.matchInStadium(match=Match(4), stadium=Stadium(3), attendance=40001))
+        self.assertEqual(ReturnValue.OK, Solution.matchInStadium(match=Match(5), stadium=Stadium(3), attendance=40001))
+        self.assertEqual(ReturnValue.OK, Solution.playerScoredInMatch(Match(matchID=4), Player(playerID=1), 2), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.playerScoredInMatch(Match(matchID=5), Player(playerID=1), 1), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.matchInStadium(match=Match(6), stadium=Stadium(5), attendance=40001))
+        self.assertEqual([2, 1, 3, 4, 5], Solution.getMostAttractiveStadiums())
+
+
+
 
 
 
