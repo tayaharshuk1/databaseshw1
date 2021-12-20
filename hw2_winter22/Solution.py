@@ -152,6 +152,11 @@ def defineViews():
                                      query="SELECT SUM(amount) AS goals, matchId FROM Scores GROUP BY matchId",
                                      toMaterialize=False)
 
+    view_goalsPerPlayer = _createView(name="goalsPerPlayer",
+                                      query="SELECT Players.playerId AS playerId, Players.teamId AS teamId, COALESCE(SUM(amount), 0) AS amount FROM players "
+                                            "LEFT JOIN Scores ON Players.playerId = Scores.playerId GROUP BY Players.playerId",
+                                      toMaterialize=False)
+
     view_ActiveTeams = _createView(name="activeTeams",
                                    query="SELECT DISTINCT homeTeamId AS teamId FROM Matches UNION SELECT DISTINCT awayTeamId FROM Matches",
                                    toMaterialize=False)
@@ -179,6 +184,7 @@ def defineViews():
 
     Views.append(view_personalStats)
     Views.append(view_goalsPerMatch)
+    Views.append(view_goalsPerPlayer)
     Views.append(view_ActiveTeams)
     Views.append(view_TallTeams)
     Views.append(view_ActiveTallTeams)
@@ -530,7 +536,18 @@ def getMostAttractiveStadiums() -> List[int]:
 
 
 def mostGoalsForTeam(teamID: int) -> List[int]:
-    pass
+    players = []
+    q = (sql.SQL("SELECT playerId FROM goalsPerPlayer WHERE teamId = {teamId} ORDER BY amount DESC, playerId DESC LIMIT 5")
+         .format(teamId=sql.Literal(teamID)))
+    res = sendQuery(q)
+
+    if res.Status != ReturnValue.OK:
+        return players
+
+    for row in res.Set.rows:
+        players.append(row[0])
+
+    return players
 
 
 def getClosePlayers(playerID: int) -> List[int]:

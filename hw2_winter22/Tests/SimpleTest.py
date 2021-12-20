@@ -207,7 +207,36 @@ class Test(AbstractTest):
         self.assertEqual(ReturnValue.OK, Solution.matchInStadium(match=Match(6), stadium=Stadium(5), attendance=40001))
         self.assertEqual([2, 1, 3, 4, 5], Solution.getMostAttractiveStadiums())
 
+    def test_mostGoalsForTeam(self):
+        """
+        Team1 contains players 1, 2, 3, 4
+        Team2 contains player 5 - best scorer, irrelevant
+        player 1 - Scores 1, 1 in two games
+        player 2 - Scores 3
+        player 3,6,7 - Didn't score
+        player 4 - Scores 2
 
+        player 5, irrelevant - scores 5 in a match against team 1
+
+        :return: [2, 4, 1, 7, 6]
+        """
+        self.assertEqual(ReturnValue.OK, Solution.addTeam(1), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addTeam(2), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addPlayer(Player(1, 1, 20, 195, "Left")), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addPlayer(Player(2, 1, 20, 195, "Left")), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addPlayer(Player(3, 1, 20, 195, "Left")), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addPlayer(Player(4, 1, 20, 195, "Left")), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addPlayer(Player(5, 2, 20, 195, "Left")), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addPlayer(Player(6, 1, 20, 195, "Left")), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addPlayer(Player(7, 1, 20, 195, "Left")), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addMatch(Match(1, "Domestic", 1, 2)), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.addMatch(Match(2, "Domestic", 2, 1)), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.playerScoredInMatch(Match(matchID=1), Player(playerID=1), 1), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.playerScoredInMatch(Match(matchID=2), Player(playerID=1), 1), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.playerScoredInMatch(Match(matchID=1), Player(playerID=2), 3), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.playerScoredInMatch(Match(matchID=1), Player(playerID=4), 2), "Should work")
+        self.assertEqual(ReturnValue.OK, Solution.playerScoredInMatch(Match(matchID=1), Player(playerID=5), 7), "Should work")
+        self.assertEqual([2, 4, 1, 7, 6], Solution.mostGoalsForTeam(1))
 
 
 
