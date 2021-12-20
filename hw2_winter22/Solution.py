@@ -245,6 +245,7 @@ def createTables():
 
 
 def clearTables():
+    #TODO Clean views
     for table in Tables:
         q = "DELETE FROM " + table["name"]
 
