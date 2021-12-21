@@ -299,7 +299,37 @@ class Test(AbstractTest):
         self.assertEqual([1, 2, 3, 4, 5, 6, 7, 9, 10, 11], Solution.getClosePlayers(8))
 
 
+        def test_deleteOfRecord:
+        #teams: 1,2,3
+        #player 1 in team 2
 
+        #stadiums: 10,20
+
+        #return
+        #TODO: shouldwork? , when we have BADPARAMS?
+
+        self.assertEqual((ReturnValue.OK,Solution.addTeam(1)), "Should work")
+        self.assertEqual((ReturnValue.OK, Solution.addTeam(2)), "Should work")
+        self.assertEqual((ReturnValue.OK, Solution.addTeam(30)), "Should work")
+        self.assertEqual((ReturnValue.ALREADY_EXISTS, Solution.addTeam(1)), "Shoult work")  #trying to add again team1
+        #self.assertEqual((ReturnValue.OK, Solution.defineTables),)
+        self.assertEqual(ReturnValue.OK,Solution.addPlayer(Player(1,2,20,195, "Left")))  #add player 1 to team 2
+        self.assertEqual(ReturnValue.ALREADY_EXISTS, Solution.addPlayer(Player(1, 2, 20, 195, "Left"))) #trying to add player 1 to team 2
+        self.assertEqual(ReturnValue.ALREADY_EXISTS, Solution.addPlayer(Player(1, 3, 20, 195, "Left")))
+        self.assertEqual(ReturnValue.OK, Solution.deletePlayer(Player(1, 2, 20, 195, "Left")))  #deleting player 1
+        self.assertEqual(ReturnValue.OK, Solution.getPlayerProfile(1))     #trying to get profile of a player who doesnt exist
+        self.assertEqual((ReturnValue.OK, Solution.addStadium(Stadium(10,300))),"Should work")
+        self.assertEqual((ReturnValue.OK, Solution.addStadium(Stadium(20, 200))),"Should work")
+        self.assertEqual((ReturnValue.ALREADY_EXISTS, Solution.addStadium(Stadium(10, 300))), "Should work") #trying to add an existing stadium
+        self.assertEqual((ReturnValue.OK, Solution.deleteStadium(Stadium(20, 200))),"Should work" )
+        self.assertEqual((ReturnValue.NOT_EXISTS, Solution.getStadiumProfile(20),"Should work") #trying to get a profile of stadium that doesnt exist
+
+
+
+
+        def test_getRecords:
+
+        def test_cleanTables
 
 # *** DO NOT RUN EACH TEST MANUALLY ***
 if __name__ == '__main__':
